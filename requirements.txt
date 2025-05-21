@@ -1,0 +1,6 @@
+click>=8.0.0
+redis>=4.0.0
+rq>=1.10.0
+rq-dashboard>=0.6.0
+requests>=2.25.0
+colorama>=0.4.4

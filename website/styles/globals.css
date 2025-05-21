@@ -1,0 +1,287 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 30;
+  --terminal-green: #00ff00;
+  --terminal-blue: #00aaff;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  min-height: 100vh;
+}
+
+/* Code Rain Animation */
+.code-rain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.code-rain::before {
+  content: "01010111 01100101 01101100 01100011 01101111 01101101 01100101 00100000 01110100 01101111 00100000 01001011 01101110 01101111 01100011 01101111 01100100 01100101 01111000 00100001 01001011 01101110 01101111 01100011 01101111 01100100 01100101 01111000 00100000 01101001 01110011 00100000 01100001 01101110 00100000 01000001 01001001 00101101 01110000 01101111 01110111 01100101 01110010 01100101 01100100 00100000 01001010 01110101 01101110 01101001 01101111 01110010 00100000 01000100 01100101 01110110 01100101 01101100 01101111 01110000 01100101 01110010 00100000 01110100 01101000 01100001 01110100 00100000 01110100 01110010 01100001 01101110 01110011 01100110 01101111 01110010 01101101 01110011 00100000 01111001 01101111 01110101 01110010 00100000 01100100 01100101 01110110 01100101 01101100 01101111 01110000 01101101 01100101 01101110 01110100 00100000 01110111 01101111 01110010 01101011 01100110 01101100 01101111 01110111 00101110";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: transparent;
+  opacity: 0.5;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--terminal-blue);
+  text-shadow: 0 0 5px var(--terminal-blue);
+  transform: rotate(45deg);
+  animation: code-rain-animation 20s linear infinite;
+  white-space: nowrap;
+  line-height: 1.5;
+  letter-spacing: 2px;
+}
+
+@keyframes code-rain-animation {
+  0% {
+    transform: rotate(45deg) translateY(-10%);
+  }
+  100% {
+    transform: rotate(45deg) translateY(10%);
+  }
+}
+
+.terminal-container {
+  background-color: theme('colors.terminal.bg');
+  color: theme('colors.terminal.text');
+  font-family: theme('fontFamily.mono');
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0, 170, 255, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.terminal-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.3;
+}
+
+.terminal-header {
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 2;
+}
+
+.terminal-body {
+  padding: 16px;
+  height: 400px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+  background-image: radial-gradient(
+    rgba(0, 170, 255, 0.1) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+}
+
+.terminal-prompt {
+  color: theme('colors.terminal.prompt');
+  margin-right: 8px;
+}
+
+.terminal-input {
+  background: transparent;
+  border: none;
+  color: theme('colors.terminal.text');
+  font-family: theme('fontFamily.mono');
+  outline: none;
+  width: 100%;
+}
+
+.terminal-line {
+  margin-bottom: 8px;
+  line-height: 1.5;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.terminal-line:hover {
+  background-color: rgba(0, 170, 255, 0.05);
+}
+
+.terminal-error {
+  color: theme('colors.terminal.error');
+}
+
+.terminal-success {
+  color: theme('colors.terminal.success');
+}
+
+.terminal-code {
+  color: #a4e400;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-family: theme('fontFamily.mono');
+  position: relative;
+  overflow-x: auto;
+}
+
+.terminal-code::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #a4e400;
+  opacity: 0.5;
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: theme('colors.terminal.text');
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
+/* Processing animation */
+.terminal-prompt {
+  position: relative;
+  color: theme('colors.terminal.prompt');
+}
+
+.terminal-prompt::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background-color: theme('colors.terminal.prompt');
+  animation: processing-pulse 1s infinite;
+}
+
+@keyframes processing-pulse {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+.grid-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-size: 50px 50px;
+  background-image:
+    linear-gradient(to right, rgba(0, 100, 200, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 100, 200, 0.1) 1px, transparent 1px);
+}
+
+.grid-point {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: rgba(0, 170, 255, 0.5);
+  animation: grid-pulse 2s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+.hero-section {
+  position: relative;
+  overflow: hidden;
+  padding: 100px 0;
+}
+
+.waitlist-form {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 170, 255, 0.3);
+  border-radius: 8px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.btn-primary {
+  @apply bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-4 rounded transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-transparent border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white font-bold py-2 px-4 rounded transition-colors;
+}
+
+.section {
+  @apply py-16 px-4 md:px-8;
+}
+
+.section-title {
+  @apply text-3xl md:text-4xl font-bold mb-8 text-center;
+}
+
+.card {
+  @apply bg-black/50 border border-primary-500/30 rounded-lg p-6 hover:border-primary-500/70 transition-all;
+}
+
+.faq-item {
+  @apply border-b border-gray-700 py-4;
+}
+
+.faq-question {
+  @apply font-bold text-lg cursor-pointer flex justify-between items-center;
+}
+
+.faq-answer {
+  @apply mt-2 text-gray-300;
+}

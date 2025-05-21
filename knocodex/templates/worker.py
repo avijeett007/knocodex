@@ -12,7 +12,7 @@ import subprocess
 import importlib.util
 from pathlib import Path
 from redis import Redis
-from rq import Worker, Queue, Connection
+from rq import Worker, Queue
 
 # Set up logging
 logging.basicConfig(
@@ -388,6 +388,7 @@ def review_pull_request(pr_number):
 if __name__ == "__main__":
     logger.info("Starting worker process")
     
-    with Connection(redis_conn):
-        worker = Worker([queue])
-        worker.work()
+    # In RQ 2.3.3, the Connection context manager was removed
+    # Worker now directly uses the connection from the queue
+    worker = Worker([queue], connection=redis_conn)
+    worker.work()

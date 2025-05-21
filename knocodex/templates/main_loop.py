@@ -42,19 +42,21 @@ github_issue_label = config.get("github_issue_label", "knocodex")
 polling_interval = config.get("polling_interval", 300)
 pr_review_enabled = config.get("pr_review_enabled", True)
 
+# Check for worker.py first - it's needed by tasks.py
+worker_file = os.path.join(knocodex_dir, "worker.py")
+if not os.path.exists(worker_file):
+    logger.error("Worker script not found. Please run 'knocodex init' first to initialize the project properly.")
+    sys.exit(1)
+
 # Import tasks module
 sys.path.append(knocodex_dir)
-try:
-    from tasks import enqueue_process_github_issue, enqueue_review_pull_request
-except ImportError:
-    logger.error("Failed to import tasks module")
+
+# First check if tasks.py exists, if not create it
+tasks_file = os.path.join(knocodex_dir, "tasks.py")
+if not os.path.exists(tasks_file):
+    logger.info("Creating tasks.py file")
     
-    # Create tasks.py if it doesn't exist
-    tasks_file = os.path.join(knocodex_dir, "tasks.py")
-    if not os.path.exists(tasks_file):
-        logger.info("Creating tasks.py file")
-        
-        tasks_content = """import os
+    tasks_content = """import os
 import sys
 import time
 from redis import Redis
@@ -66,12 +68,33 @@ queue_name = os.environ.get('REDIS_QUEUE', 'knocodex')
 redis_conn = Redis.from_url(redis_url)
 queue = Queue(queue_name, connection=redis_conn)
 
-# Add parent directory to path so we can import worker
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from worker import process_github_issue, update_project_documentation, review_pull_request
+# Safely import from worker - add appropriate path first
+worker_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(worker_path)
+
+# Define placeholder functions in case imports fail
+def process_github_issue(issue_number):
+    '''Process a GitHub issue'''
+    raise NotImplementedError("Worker module not properly loaded")
+
+def update_project_documentation():
+    '''Update project documentation'''
+    raise NotImplementedError("Worker module not properly loaded")
+
+def review_pull_request(pr_number):
+    '''Review a pull request'''
+    raise NotImplementedError("Worker module not properly loaded")
+
+# Try to import the actual implementations
+try:
+    from worker import process_github_issue, update_project_documentation, review_pull_request
+    print("Successfully imported worker functions")
+except ImportError as e:
+    print(f"Warning: Could not import from worker: {e}")
+    # Continue with placeholder functions
 
 def enqueue_process_github_issue(issue_number):
-    \"\"\"Add a GitHub issue processing task to the queue\"\"\"
+    '''Add a GitHub issue processing task to the queue'''
     job = queue.enqueue(
         process_github_issue,
         issue_number,
@@ -82,7 +105,7 @@ def enqueue_process_github_issue(issue_number):
     return job.id
 
 def enqueue_update_documentation():
-    \"\"\"Add a documentation update task to the queue\"\"\"
+    '''Add a documentation update task to the queue'''
     job = queue.enqueue(
         update_project_documentation,
         job_timeout='1h',
@@ -92,7 +115,7 @@ def enqueue_update_documentation():
     return job.id
 
 def enqueue_review_pull_request(pr_number):
-    \"\"\"Add a PR review task to the queue\"\"\"
+    '''Add a PR review task to the queue'''
     job = queue.enqueue(
         review_pull_request,
         pr_number,
@@ -102,18 +125,19 @@ def enqueue_review_pull_request(pr_number):
     )
     return job.id
 """
-        
-        with open(tasks_file, "w") as f:
-            f.write(tasks_content)
-        
-        logger.info("Created tasks.py file")
-        
-        # Try importing again
-        try:
-            from tasks import enqueue_process_github_issue, enqueue_review_pull_request
-        except ImportError:
-            logger.error("Failed to import tasks module after creating it")
-            sys.exit(1)
+    
+    with open(tasks_file, "w") as f:
+        f.write(tasks_content)
+    
+    logger.info("Created tasks.py file")
+
+# Try to import the tasks module
+try:
+    from tasks import enqueue_process_github_issue, enqueue_review_pull_request
+    logger.info("Successfully imported tasks module")
+except ImportError as e:
+    logger.error(f"Failed to import tasks module: {e}")
+    sys.exit(1)
 
 def check_github_issues():
     """Check for GitHub issues with the specified label"""

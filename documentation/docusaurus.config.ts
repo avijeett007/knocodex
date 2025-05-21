@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Knocodex',
   tagline: 'Autonomous AI-Powered Code Development Platform',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   // Set the production url of your site here
   url: 'https://docs.knocodex.dev',
@@ -64,6 +64,11 @@ const config: Config = {
     ],
   ],
 
+  themes: ['@docusaurus/theme-mermaid'],
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
@@ -91,7 +96,7 @@ const config: Config = {
       title: 'Knocodex',
       logo: {
         alt: 'Knocodex Logo',
-        src: 'img/logo.svg',
+        src: 'img/knocodex-logo.svg',
       },
       items: [
         {

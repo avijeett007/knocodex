@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="200" height="40" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+  <!-- Kno -->
+  <text x="0" y="30" font-family="monospace" font-weight="bold" font-size="30" fill="#0073ff">Kno</text>
+  
+  <!-- codex -->
+  <text x="60" y="30" font-family="monospace" font-weight="bold" font-size="30" fill="#ffffff">codex</text>
+  
+  <!-- Terminal cursor -->
+  <rect x="190" y="5" width="2" height="30" fill="#0073ff">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+  </rect>
+</svg>

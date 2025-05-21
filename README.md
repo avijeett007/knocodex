@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/avijeett007/knocodex/main/assets/knocodex-logo.png" alt="Knocodex Logo" width="200"/>
+  <img src="website/public/knocodex-logo.svg" alt="Knocodex Logo" width="200"/>
 </p>
 
-<h1 align="center">Knocodex</h1>
+<p align="center">
+  <img src="website/public/knocodex-text-logo.svg" alt="Knocodex Logo" width="200"/>
+</p>
 
 <p align="center">
   <strong>Your AI-powered Junior Developer</strong>

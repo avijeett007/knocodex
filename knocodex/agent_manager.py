@@ -93,6 +93,30 @@ class AgentManager:
         if self.agent_type == "claude" and not (self.project_path / "CLAUDE.md").exists():
             self._create_claude_md()
 
+        if self.agent_type == "aider":
+            logger.info("Aider agent type selected. Setting up Aider specific configurations.")
+            aider_conf_path = self.project_path / ".aider.conf.yml"
+            if not aider_conf_path.exists():
+                try:
+                    # Ensure project_config is available; it should be by this point.
+                    # If project_config is None (e.g. global config was used and failed), this might be an issue.
+                    # However, init_project typically creates/gets project_config.
+                    if self.project_config:
+                        default_aider_model = self.project_config.get("aider_model", "gpt-4-turbo")
+                    else: # Fallback if project_config somehow isn't set
+                        default_aider_model = "gpt-4-turbo"
+                    default_aider_conf_content = f"model: {default_aider_model}\nauto-commits: true\n"
+                    # Example: model: gpt-4-turbo
+# auto-commits: true
+
+                    with open(aider_conf_path, "w") as f:
+                        f.write(default_aider_conf_content)
+                    logger.info(f"Created default Aider configuration at {aider_conf_path} with model {default_aider_model}.")
+                except Exception as e:
+                    logger.error(f"Failed to create default .aider.conf.yml: {e}")
+            else:
+                logger.info(f"Existing Aider configuration found at {aider_conf_path}.")
+
         logger.info("Project initialization complete")
 
     def _create_claude_commands(self):
@@ -179,9 +203,85 @@ class AgentManager:
         if self.agent_type == "claude":
             self._start_claude_agent()
         elif self.agent_type == "aider":
-            logger.error("Aider agent is not yet supported")
+            self._start_aider_agent()
         else:
             logger.error(f"Unknown agent type: {self.agent_type}")
+
+    def _start_aider_agent(self):
+        """Start the Aider agent"""
+        logger.info("Starting Aider agent...")
+
+        # Create a dummy app.py if it doesn't exist for testing purposes
+        app_py_path = self.project_path / "app.py"
+        if not app_py_path.exists():
+            try:
+                with open(app_py_path, "w") as f:
+                    f.write("# app.py\n")
+                    f.write("def main():\n")
+                    f.write('    print("Hello from app.py")\n')
+                    f.write('\n')
+                    f.write('if __name__ == "__main__":\n')
+                    f.write("    main()\n")
+                logger.info(f"Created dummy app.py at {app_py_path}")
+            except Exception as e:
+                logger.error(f"Failed to create dummy app.py: {e}")
+                # Optionally, return or raise if app.py is critical for the next steps
+                # For now, we'll let it proceed, Aider might fail if the file is missing.
+
+        # Placeholder for actual task retrieval logic
+        task = {
+            "instruction": "Refactor the main function in app.py to improve readability and add comments.",
+            "files": ["app.py"] # Assume app.py exists in the project_path for testing
+        }
+        logger.info(f"Retrieved task for Aider: {task['instruction']}")
+
+        # Get Aider configuration
+        aider_executable = self.config.get_global_config().get("aider_executable_path", "aider")
+        # Ensure project_config is not None before accessing .get
+        aider_model = "gemini-pro" # Default
+        aider_options = [] # Default
+        if self.project_config:
+            aider_model = self.project_config.get("aider_model", "gemini-pro")
+            aider_options = self.project_config.get("aider_options", [])
+        else:
+            logger.warning("Project configuration not found. Using default Aider model and options.")
+
+
+        # Construct the command
+        cmd = [aider_executable]
+        cmd.extend(task["files"])
+        cmd.extend(["--message", task["instruction"]])
+        cmd.extend(["--model", aider_model])
+        cmd.append("--yes") # Auto-apply changes
+        cmd.extend(aider_options)
+        logger.info(f"Executing Aider command: {' '.join(cmd)}")
+
+        # Execute the command using subprocess.run()
+        try:
+            process_result = subprocess.run(
+                cmd,
+                cwd=str(self.project_path),
+                capture_output=True,
+                text=True,
+                check=False, # Handle errors manually
+            )
+            logger.info("Aider stdout:")
+            for line in process_result.stdout.splitlines():
+                logger.info(line)
+            if process_result.stderr:
+                logger.warning("Aider stderr:")
+                for line in process_result.stderr.splitlines():
+                    logger.warning(line)
+            
+            if process_result.returncode == 0:
+                logger.info("Aider command executed successfully.")
+            else:
+                logger.error(f"Aider command failed with return code {process_result.returncode}.")
+
+        except FileNotFoundError:
+            logger.error(f"Aider executable not found at '{aider_executable}'. Please ensure Aider is installed and in PATH, or configure 'aider_executable_path' in global Knocodex config.")
+        except Exception as e:
+            logger.error(f"An error occurred while running Aider: {e}")
 
     def _start_claude_agent(self):
         """Start the Claude agent"""
@@ -512,7 +612,8 @@ class AgentManager:
         if self.agent_type == "claude":
             self._generate_claude_docs()
         elif self.agent_type == "aider":
-            logger.error("Aider agent is not yet supported")
+            logger.warning("Aider document generation is not fully implemented yet. This would be the place to call a specific Aider command for documentation.")
+            # self._generate_aider_docs() # If you were to implement it
         else:
             logger.error(f"Unknown agent type: {self.agent_type}")
 

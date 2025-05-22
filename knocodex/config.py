@@ -33,6 +33,7 @@ class Config:
             "github_issue_label": "knocodex",
             "claude_code_path": "",  # Will be set during setup
             "gh_path": "",  # Will be set during setup
+            "aider_executable_path": "aider" # New addition
         }
         
         # Default project configuration
@@ -44,6 +45,8 @@ class Config:
             "pr_review_enabled": True,
             "pr_auto_review": True,
             "pr_auto_review_delay": 300,  # 5 minutes
+            "aider_model": "gemini-pro", # New addition
+            "aider_options": []          # New addition
         }
     
     def create_global_config(self):

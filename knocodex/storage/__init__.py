@@ -1,0 +1,1 @@
+"""Storage module for persistent data management."""

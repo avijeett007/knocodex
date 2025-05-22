@@ -182,7 +182,7 @@ def check_github_issues():
         logger.error(f"Error checking GitHub issues: {e}")
 
 def check_github_prs():
-    """Check for GitHub PRs that need review"""
+    """Check for GitHub PRs that need review with duplicate prevention"""
     if not pr_review_enabled:
         logger.info("PR review is disabled")
         return
@@ -190,8 +190,25 @@ def check_github_prs():
     logger.info("Checking for GitHub PRs that need review")
     
     try:
-        # Get open PRs
-        cmd = ["gh", "pr", "list", "--json", "number,title,url,reviewDecision,reviews", "--state", "open"]
+        # Initialize PR review state tracking if configured
+        pr_review_state = None
+        pr_review_mode = config.get("pr_review_mode", "never_repeat")
+        pr_state_storage_path = config.get("pr_state_storage_path")
+        
+        if pr_state_storage_path or pr_review_mode != "manual_only":
+            try:
+                # Import PR review state management
+                sys.path.insert(0, os.path.join(project_path, "knocodex"))
+                from models.pr_review_state import PRReviewState
+                
+                pr_review_state = PRReviewState(pr_state_storage_path)
+                logger.info(f"Initialized PR review state tracking with mode: {pr_review_mode}")
+            except ImportError as e:
+                logger.warning(f"Could not import PR review state management: {e}")
+                logger.info("Falling back to existing behavior")
+        
+        # Get open PRs with enhanced metadata
+        cmd = ["gh", "pr", "list", "--json", "number,title,url,reviewDecision,reviews,updatedAt,headRefOid", "--state", "open"]
         
         if github_repo:
             cmd.extend(["--repo", github_repo])
@@ -205,14 +222,20 @@ def check_github_prs():
         
         logger.info(f"Found {len(prs)} open PRs")
         
-        # Process each PR
+        # Cleanup closed PRs from state if tracking enabled
+        if pr_review_state:
+            open_pr_numbers = [pr["number"] for pr in prs]
+            pr_review_state.cleanup_closed_prs(open_pr_numbers)
+        
+        # Filter PRs using enhanced logic
+        prs_to_review = []
         for pr in prs:
             pr_number = pr["number"]
             pr_title = pr["title"]
             review_decision = pr.get("reviewDecision")
             reviews = pr.get("reviews", [])
             
-            # Check if the PR needs review
+            # Check if the PR needs review (existing logic)
             if review_decision == "APPROVED":
                 logger.info(f"PR #{pr_number} is already approved")
                 continue
@@ -221,11 +244,45 @@ def check_github_prs():
                 logger.info(f"PR #{pr_number} already has reviews")
                 continue
             
-            # Check if the PR is already being reviewed
+            # Check with PR review state if available
+            if pr_review_state:
+                commit_sha = pr.get("headRefOid", "")
+                updated_at = pr.get("updatedAt", "")
+                
+                if pr_review_state.needs_review(
+                    pr_number=pr_number,
+                    current_commit_sha=commit_sha,
+                    pr_updated_at=updated_at,
+                    review_mode=pr_review_mode
+                ):
+                    prs_to_review.append(pr)
+                else:
+                    logger.info(f"Skipping PR #{pr_number}: already reviewed by knocodex")
+            else:
+                # Fallback to existing behavior
+                prs_to_review.append(pr)
+        
+        # Process filtered PRs
+        for pr in prs_to_review:
+            pr_number = pr["number"]
+            pr_title = pr["title"]
+            
+            # Check if the PR is already being reviewed (lock file check)
             lock_file = os.path.join(knocodex_dir, "locks", f"pr-{pr_number}.lock")
             if os.path.exists(lock_file):
                 logger.info(f"PR #{pr_number} is already being reviewed")
                 continue
+            
+            # Record review start if state tracking enabled
+            if pr_review_state:
+                commit_sha = pr.get("headRefOid", "")
+                updated_at = pr.get("updatedAt", "")
+                pr_review_state.record_review_start(
+                    pr_number=pr_number,
+                    pr_title=pr_title,
+                    commit_sha=commit_sha,
+                    pr_updated_at=updated_at
+                )
             
             # Enqueue the PR for review
             logger.info(f"Enqueuing PR #{pr_number} for review: {pr_title}")

@@ -67,6 +67,10 @@ class Config:
             "pr_review_enabled": True,
             "pr_auto_review": True,
             "pr_auto_review_delay": 300,  # 5 minutes
+            # PR review behavior configuration
+            "pr_review_mode": "never_repeat",  # never_repeat, on_updates, manual_only
+            "pr_state_storage_path": None,  # Path for PR state storage (default: .knocodex/pr_review_state.json)
+            "pr_update_detection_enabled": True,  # Enable PR update detection
             # Project-specific workflow settings
             "project_id": "",  # Unique project identifier
             "sequential_processing": None,  # Inherit from global if None

@@ -193,12 +193,53 @@ def comment_on_pr(pr_number, comment, repo=None):
             check=True,
         )
         
-        logger.info(f"Commented on PR {pr_number}")
+        logger.info(f"Commented on PR #{pr_number}")
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to comment on PR {pr_number}: {e}")
+        logger.error(f"Failed to comment on PR #{pr_number}: {e}")
         logger.error(f"Error output: {e.stderr}")
         return False
     except Exception as e:
         logger.error(f"Failed to comment on PR {pr_number}: {e}")
         return False
+
+def get_issue_details(issue_number, repo=None):
+    """Get detailed information about a GitHub issue
+    
+    This function fetches comprehensive details about a GitHub issue,
+    including its title, body, labels, assignees, and other metadata.
+    
+    Args:
+        issue_number: The issue number to get details for
+        repo: Optional repository in the format 'owner/repo'
+        
+    Returns:
+        Dict with issue details or None if an error occurs
+    """
+    try:
+        cmd = ["gh", "issue", "view", str(issue_number), 
+               "--json", "number,title,body,labels,assignees,milestone,state,createdAt,updatedAt,comments"]
+        
+        if repo:
+            cmd.extend(["--repo", repo])
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        
+        issue_data = json.loads(result.stdout)
+        logger.info(f"Retrieved details for issue #{issue_number}")
+        return issue_data
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to get details for issue #{issue_number}: {e}")
+        logger.error(f"Error output: {e.stderr}")
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON response for issue #{issue_number}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get details for issue #{issue_number}: {e}")
+        return None

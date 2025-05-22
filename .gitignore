@@ -115,7 +115,7 @@ venv.bak/
 *.swo
 
 # Knocodex specific
-# .knocodex/
+.knocodex/
 
 CLAUDE.md
 .claude/

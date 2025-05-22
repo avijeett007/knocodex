@@ -46,13 +46,21 @@ redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
 redis_conn = Redis.from_url(redis_url)
 
 # Initialize workflow engine and project manager
+from knocodex.config import Config
+
+# Create a workflow config
 workflow_config = WorkflowConfig(
     max_parallel_subtasks=int(os.environ.get("MAX_PARALLEL_SUBTASKS", "3")),
     dependency_timeout_minutes=int(os.environ.get("DEPENDENCY_TIMEOUT_MINUTES", "60")),
     retry_attempts=int(os.environ.get("RETRY_ATTEMPTS", "2"))
 )
+
+# Create a config object with the current project path
+config = Config(project_path)
+
+# Initialize the workflow engine and project manager with proper parameters
 workflow_engine = SubtaskWorkflowEngine(redis_conn, workflow_config)
-project_manager = ProjectManager(redis_conn)
+project_manager = ProjectManager(config, redis_conn)
 
 
 def create_subtask_instruction_file(subtask: Subtask, task_id: str, project_id: str) -> str:

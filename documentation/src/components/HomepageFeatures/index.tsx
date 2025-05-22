@@ -11,32 +11,35 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
-    description: (
-      <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
-      </>
-    ),
-  },
-  {
-    title: 'Focus on What Matters',
+    title: 'Subtask Workflow System',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Break down complex GitHub issues into manageable subtasks with automatic
+        dependency management. Execute subtasks in the optimal order and track progress
+        through a comprehensive CLI interface.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'AI-Powered Assistance',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Leverage AI agents to analyze issues, implement solutions, and review code.
+        Knocodex integrates with AI models to provide intelligent assistance throughout
+        the development process.
+      </>
+    ),
+  },
+  {
+    title: 'GitHub Integration',
+    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    description: (
+      <>
+        Seamlessly integrate with GitHub repositories. Process issues, create branches,
+        and generate pull requests automatically. Use labels to control which issues
+        are processed by Knocodex.
       </>
     ),
   },

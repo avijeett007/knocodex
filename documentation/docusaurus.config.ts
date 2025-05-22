@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Knocodex',
-  tagline: 'Autonomous AI-Powered Code Development Platform',
+  tagline: 'Autonomous AI-Powered Code Development with Subtask Workflows',
   favicon: 'img/favicon.svg',
 
   // Set the production url of your site here
@@ -70,28 +70,16 @@ const config: Config = {
   },
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
-    algolia: {
-      // The application ID provided by Algolia
-      appId: 'YOUR_APP_ID',
-      // Public API key: it is safe to commit it
-      apiKey: 'YOUR_SEARCH_API_KEY',
-      indexName: 'knocodex',
-      // Optional: see doc section below
-      contextualSearch: true,
-      // Optional: Specify domains where the navigation should occur through window.location instead on history.push. Useful when our Algolia config crawls multiple documentation sites and we want to navigate with window.location.href to them.
-      externalUrlRegex: 'external\\.com|domain\\.com',
-      // Optional: Replace parts of the item URLs from Algolia. Useful when using the same search index for multiple deployments using a different baseUrl. You can use regexp or string in the `from` param. For example: localhost:3000 vs myCompany.github.io/myProject/
-      replaceSearchResultPathname: {
-        from: '/docs/', // or as RegExp: /\/docs\//
-        to: '/',
-      },
-      // Optional: Algolia search parameters
-      searchParameters: {},
-      // Optional: path for search page that enabled by default (`false` to disable it)
-      searchPagePath: 'search',
-    },
+    // Custom social card for the project
+    image: 'img/knocodex-social-card.png',
+    // Configure when ready to deploy
+    // algolia: {
+    //   appId: 'YOUR_APP_ID',
+    //   apiKey: 'YOUR_SEARCH_API_KEY',
+    //   indexName: 'knocodex',
+    //   contextualSearch: true,
+    // },
+    
     navbar: {
       title: 'Knocodex',
       logo: {
@@ -113,8 +101,23 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/knocodex/knocodex',
-          label: 'GitHub',
+          type: 'dropdown',
+          label: 'Community',
+          position: 'right',
+          items: [
+            {
+              label: 'GitHub',
+              href: 'https://github.com/avijeett007/knocodex',
+            },
+            {
+              label: 'Issues',
+              href: 'https://github.com/avijeett007/knocodex/issues',
+            },
+          ],
+        },
+        {
+          href: 'https://pypi.org/project/knocodex/',
+          label: 'PyPI',
           position: 'right',
         },
       ],
@@ -126,12 +129,20 @@ const config: Config = {
           title: 'Documentation',
           items: [
             {
-              label: 'User Guide',
+              label: 'Getting Started',
               to: '/docs/user-guide/getting-started',
             },
             {
-              label: 'Developer Guide',
-              to: '/docs/developer-guide/architecture',
+              label: 'Subtask Workflow',
+              to: '/docs/user-guide/subtask-workflow',
+            },
+            {
+              label: 'Configuration',
+              to: '/docs/user-guide/configuration',
+            },
+            {
+              label: 'API Reference',
+              to: '/docs/developer-guide/api-reference',
             },
           ],
         },
@@ -139,12 +150,20 @@ const config: Config = {
           title: 'Community',
           items: [
             {
-              label: 'GitHub Issues',
-              href: 'https://github.com/knocodex/knocodex/issues',
+              label: 'GitHub Repository',
+              href: 'https://github.com/avijeett007/knocodex',
+            },
+            {
+              label: 'Issues',
+              href: 'https://github.com/avijeett007/knocodex/issues',
+            },
+            {
+              label: 'Pull Requests',
+              href: 'https://github.com/avijeett007/knocodex/pulls',
             },
             {
               label: 'Discussions',
-              href: 'https://github.com/knocodex/knocodex/discussions',
+              href: 'https://github.com/avijeett007/knocodex/discussions',
             },
           ],
         },

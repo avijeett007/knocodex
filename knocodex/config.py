@@ -24,15 +24,33 @@ class Config:
         self.project_config_dir = self.project_path / ".knocodex" if self.project_path else None
         self.project_config_file = self.project_config_dir / "config.json" if self.project_config_dir else None
         
+        # Base directory for project manager - needed for subtask workflows
+        self.base_dir = self.global_config_dir
+        if self.project_path:
+            self.base_dir = self.project_path
+        
         # Default global configuration
         self.default_global_config = {
-            "agent_type": "claude",  # Default agent type
+            "agent_type": "claude",  # Default agent type (claude or aider)
+            "ai_backend": "claude-code",  # AI backend (claude-code or aider)
             "redis_url": "redis://localhost:6379",
             "redis_queue": "knocodex",
             "polling_interval": 300,  # 5 minutes
             "github_issue_label": "knocodex",
             "claude_code_path": "",  # Will be set during setup
             "gh_path": "",  # Will be set during setup
+            # Claude Code configuration
+            "claude_api_key": "",  # Will be set from environment
+            "claude_model": "claude-3-5-sonnet-20241022",
+            # Aider configuration
+            "aider_model": "gemini-exp",
+            "aider_auto_commits": True,
+            "aider_stream": False,
+            "aider_verbose": False,
+            # API keys for different models
+            "gemini_api_key": "",  # Will be set from environment
+            "openai_api_key": "",  # Will be set from environment
+            "anthropic_api_key": "",  # Will be set from environment
         }
         
         # Default project configuration

@@ -13,8 +13,10 @@ import signal
 import json
 from pathlib import Path
 import pkg_resources
+import redis
 
 from .config import Config
+from .project_manager import ProjectManager
 
 logger = logging.getLogger("knocodex.agent_manager")
 
@@ -46,6 +48,47 @@ class AgentManager:
 
         # Get template paths
         self.template_dir = Path(pkg_resources.resource_filename("knocodex", "templates"))
+        
+        # Initialize workflow components
+        self.redis_conn = None
+        self.project_manager = None
+        self.workflow_engine = None
+        self.queue_manager = None
+        
+        # Try to initialize Redis connection
+        try:
+            from redis import Redis
+            redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+            self.redis_conn = Redis.from_url(redis_url)
+            
+            # Initialize workflow components if Redis is available
+            from .project_manager import ProjectManager
+            from .workflow_engine import SubtaskWorkflowEngine, WorkflowConfig
+            from .utils.redis_utils import ProjectQueueManager
+            
+            # Check if ProjectManager accepts a Config object or a string path
+            import inspect
+            try:
+                project_manager_params = inspect.signature(ProjectManager.__init__).parameters
+                if 'config' in project_manager_params and 'redis_client' in project_manager_params:
+                    # If it expects a Config object and Redis client
+                    self.project_manager = ProjectManager(self.config, self.redis_conn)
+                else:
+                    # If it expects something else, create it with minimal params
+                    self.project_manager = ProjectManager(redis_url)
+            except Exception as e:
+                logger.warning(f"Failed to create ProjectManager: {e}")
+                # Fallback initialization
+                self.project_manager = ProjectManager(redis_url)
+            
+            # Initialize workflow engine with Redis connection and config
+            workflow_config = WorkflowConfig()
+            self.workflow_engine = SubtaskWorkflowEngine(self.redis_conn, workflow_config)
+            
+            # Initialize queue manager with Redis URL
+            self.queue_manager = ProjectQueueManager(redis_url=redis_url)
+        except Exception as e:
+            logger.warning(f"Failed to initialize workflow components: {e}")
 
     def init_project(self, agent_type=None):
         """Initialize a project for Knocodex"""
@@ -176,12 +219,37 @@ class AgentManager:
 
     def start(self):
         """Start the autonomous agent"""
+        logger.info(f"Starting {self.agent_type} agent...")
+
+        # Create directories
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.commands_dir.mkdir(parents=True, exist_ok=True)
+        self.tasks_dir.mkdir(parents=True, exist_ok=True)
+
         if self.agent_type == "claude":
+            # Start Claude agent
             self._start_claude_agent()
         elif self.agent_type == "aider":
             logger.error("Aider agent is not yet supported")
+            return
         else:
             logger.error(f"Unknown agent type: {self.agent_type}")
+            return
+
+        # Start Redis
+        self._start_redis()
+
+        # Start worker (legacy single-task processor)
+        self._start_worker()
+        
+        # Start subtask worker (new subtask-based workflow)
+        self._start_subtask_worker()
+
+        # Start dashboard
+        self._start_dashboard()
+
+        # Start main loop
+        self._start_main_loop()
 
     def _start_claude_agent(self):
         """Start the Claude agent"""
@@ -403,6 +471,9 @@ class AgentManager:
 
         # Stop worker
         self._stop_process("worker.pid")
+        
+        # Stop subtask worker
+        self._stop_process("subtask_worker.pid")
 
         logger.info("Autonomous agent stopped")
 
@@ -450,9 +521,12 @@ class AgentManager:
         status = {
             "agent_type": self.agent_type,
             "worker_running": False,
+            "subtask_worker_running": False,
             "redis_running": False,
             "dashboard_running": False,
             "main_loop_running": False,
+            "workflow_engine": self.workflow_engine is not None,
+            "project_manager": self.project_manager is not None
         }
 
         # Check worker
@@ -464,6 +538,18 @@ class AgentManager:
             try:
                 os.kill(pid, 0)
                 status["worker_running"] = True
+            except OSError:
+                pass
+                
+        # Check subtask worker
+        subtask_worker_pid_file = self.knocodex_dir / "subtask_worker.pid"
+        if subtask_worker_pid_file.exists():
+            with open(subtask_worker_pid_file, "r") as f:
+                pid = int(f.read().strip())
+
+            try:
+                os.kill(pid, 0)
+                status["subtask_worker_running"] = True
             except OSError:
                 pass
 
@@ -504,6 +590,15 @@ class AgentManager:
                 status["main_loop_running"] = True
             except OSError:
                 pass
+                
+        # Add project information if available
+        if self.project_manager:
+            status["projects"] = self.project_manager.list_projects()
+            
+            # Add active workflows if workflow engine is available
+            if self.workflow_engine:
+                status["active_workflows"] = []
+                # This would need to be implemented in the workflow engine
 
         return status
 
@@ -540,3 +635,176 @@ class AgentManager:
             logger.info("Documentation generated successfully")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to generate documentation: {e}")
+            
+    def _start_subtask_worker(self):
+        """Start the subtask worker process"""
+        logger.info("Starting subtask worker process...")
+
+        # Check if subtask worker is already running
+        subtask_worker_pid_file = self.knocodex_dir / "subtask_worker.pid"
+        if subtask_worker_pid_file.exists():
+            with open(subtask_worker_pid_file, "r") as f:
+                pid = int(f.read().strip())
+
+            try:
+                # Check if process is running
+                os.kill(pid, 0)
+                logger.info(f"Subtask worker is already running with PID {pid}")
+                return
+            except OSError:
+                # Process is not running
+                logger.info(f"Removing stale subtask worker PID file")
+                subtask_worker_pid_file.unlink()
+
+        # Start subtask worker
+        try:
+            # Create subtask worker script if it doesn't exist
+            subtask_worker_script = self.knocodex_dir / "subtask_worker.py"
+            if not subtask_worker_script.exists():
+                self._create_subtask_worker_script()
+
+            # Start subtask worker process
+            subtask_worker_log = self.logs_dir / "subtask_worker.log"
+            subtask_worker_process = subprocess.Popen(
+                [
+                    str(self.venv_dir / "bin" / "python"),
+                    str(subtask_worker_script),
+                ],
+                stdout=open(subtask_worker_log, "a"),
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+
+            # Save subtask worker PID
+            with open(subtask_worker_pid_file, "w") as f:
+                f.write(str(subtask_worker_process.pid))
+
+            logger.info(f"Subtask worker started with PID {subtask_worker_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start subtask worker process: {e}")
+            
+    def _create_subtask_worker_script(self):
+        """Create the subtask worker script"""
+        logger.info("Creating subtask worker script...")
+
+        try:
+            # Use the new subtask_worker.py template
+            source_file = pkg_resources.resource_filename("knocodex", "subtask_worker.py")
+            destination = self.knocodex_dir / "subtask_worker.py"
+
+            # If the source file doesn't exist in package resources, copy from templates directory
+            if not os.path.exists(source_file):
+                source_file = str(self.template_dir.parent / "subtask_worker.py")
+
+            with open(source_file, "r") as src_file:
+                content = src_file.read()
+
+            with open(destination, "w") as dest_file:
+                dest_file.write(content)
+
+            # Make the script executable
+            os.chmod(destination, 0o755)
+
+            logger.info("Created subtask worker script")
+        except Exception as e:
+            logger.error(f"Failed to create subtask worker script: {e}")
+            
+    def create_project(self, project_name, repository_url, labels=None):
+        """Create a new project configuration for subtask workflow"""
+        if not self.project_manager:
+            logger.error("Project manager is not initialized")
+            return None
+            
+        try:
+            labels = labels or ["knocodex"]
+            project_id = self.project_manager.create_project(
+                name=project_name,
+                repository_url=repository_url,
+                local_path=str(self.project_path),
+                github_token=os.environ.get("GITHUB_TOKEN", ""),
+                labels=labels,
+                max_concurrent_workflows=3,
+                max_concurrent_subtasks=10
+            )
+            
+            logger.info(f"Created project {project_name} with ID {project_id}")
+            return project_id
+        except Exception as e:
+            logger.error(f"Failed to create project: {e}")
+            return None
+            
+    def list_projects(self):
+        """List all projects managed by knocodex"""
+        if not self.project_manager:
+            logger.error("Project manager is not initialized")
+            return []
+            
+        try:
+            return self.project_manager.list_projects()
+        except Exception as e:
+            logger.error(f"Failed to list projects: {e}")
+            return []
+            
+    def get_project_status(self, project_id):
+        """Get status of a specific project and its workflows"""
+        if not self.project_manager or not self.workflow_engine:
+            logger.error("Project manager or workflow engine is not initialized")
+            return None
+            
+        try:
+            project = self.project_manager.get_project(project_id)
+            if not project:
+                logger.error(f"Project {project_id} not found")
+                return None
+                
+            metrics = self.project_manager.get_project_metrics(project_id)
+            queue_status = self.queue_manager.get_queue_status(project_id) if self.queue_manager else {}
+            
+            # Get all subtask plans for this project
+            active_workflows = []
+            # This would need to be implemented in the workflow engine to list active workflows by project
+            
+            return {
+                "project": project.__dict__,
+                "metrics": metrics.__dict__ if metrics else {},
+                "queue": queue_status,
+                "active_workflows": active_workflows
+            }
+        except Exception as e:
+            logger.error(f"Failed to get project status: {e}")
+            return None
+            
+    def process_github_issue(self, issue_number, project_id=None):
+        """Process a GitHub issue with subtasks"""
+        if not self.workflow_engine:
+            logger.error("Workflow engine is not initialized")
+            return False
+            
+        try:
+            # Default to the first project if none specified
+            if not project_id and self.project_manager:
+                projects = self.project_manager.list_projects()
+                if projects:
+                    project_id = projects[0]
+                else:
+                    project_id = "default"
+                    
+            # Get issue details
+            import subprocess
+            result = subprocess.run(
+                ["gh", "issue", "view", str(issue_number), "--json", "number,title,body,labels"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            issue_data = json.loads(result.stdout)
+            
+            # Process the issue with subtasks
+            plan_id = self.workflow_engine.process_github_issue(project_id, issue_data)
+            
+            logger.info(f"Started processing GitHub issue {issue_number} with plan ID {plan_id}")
+            return plan_id
+        except Exception as e:
+            logger.error(f"Failed to process GitHub issue {issue_number}: {e}")
+            return False

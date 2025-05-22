@@ -28,3 +28,8 @@ PR_REVIEW_MAX_RETRIES=3
 PR_REVIEW_RETRY_DELAY=300
 MIN_REREVIEW_HOURS=24
 REVIEW_ONLY_OWN_PRS=true
+
+# PR review behavior configuration
+PR_REVIEW_MODE="never_repeat"  # Options: never_repeat, on_updates, manual_only
+PR_STATE_STORAGE_PATH=""  # Path for PR state storage (empty = use default)
+PR_UPDATE_DETECTION_ENABLED=true  # Enable PR update detection

@@ -355,8 +355,48 @@ def update_project_documentation():
         }
 
 def review_pull_request(pr_number):
-    """Review a pull request"""
+    """Review a pull request with state tracking"""
     logger.info(f"Reviewing pull request #{pr_number}")
+    
+    # Create a lock file to prevent duplicate processing
+    lock_dir = os.path.join(knocodex_dir, "locks")
+    os.makedirs(lock_dir, exist_ok=True)
+    lock_file = os.path.join(lock_dir, f"pr-{pr_number}.lock")
+    
+    if os.path.exists(lock_file):
+        logger.info(f"PR #{pr_number} is already being reviewed")
+        return {
+            'success': False,
+            'error': 'PR is already being reviewed'
+        }
+    
+    # Create the lock file
+    with open(lock_file, 'w') as f:
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        f.write(f"Review started: {timestamp}\n")
+    
+    # Initialize PR review state tracking
+    pr_review_state = None
+    try:
+        # Load configuration
+        config_file = os.path.join(knocodex_dir, "config.json")
+        config = {}
+        if os.path.exists(config_file):
+            with open(config_file, "r") as f:
+                config = json.load(f)
+        
+        pr_state_storage_path = config.get("pr_state_storage_path")
+        
+        # Import PR review state management
+        sys.path.insert(0, os.path.join(project_path, "knocodex"))
+        from models.pr_review_state import PRReviewState
+        
+        pr_review_state = PRReviewState(pr_state_storage_path)
+        logger.info("Initialized PR review state tracking")
+    except ImportError as e:
+        logger.warning(f"Could not import PR review state management: {e}")
+    except Exception as e:
+        logger.warning(f"Error initializing PR review state: {e}")
     
     try:
         # Run the review-pull-request command
@@ -367,12 +407,39 @@ def review_pull_request(pr_number):
         
         if not result['success']:
             logger.error(f"Failed to review pull request #{pr_number}")
+            
+            # Record failed review in state if available
+            if pr_review_state:
+                pr_review_state.record_review_completion(pr_number, success=False)
+            
+            # Update lock file with failure information
+            with open(lock_file, 'a') as f:
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"Review failed: {timestamp}\n")
+            
             return {
                 'success': False,
                 'error': result['stderr']
             }
         
         logger.info(f"Successfully reviewed pull request #{pr_number}")
+        
+        # Record successful review in state if available
+        if pr_review_state:
+            # TODO: Extract comment ID from GitHub CLI response if needed
+            pr_review_state.record_review_completion(pr_number, success=True)
+        
+        # Update lock file to indicate completion
+        with open(lock_file, 'a') as f:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"Review completed: {timestamp}\n")
+        
+        # Remove lock file after successful completion
+        try:
+            os.remove(lock_file)
+        except OSError:
+            pass  # Lock file removal is not critical
+        
         return {
             'success': True,
             'message': f"Successfully reviewed pull request #{pr_number}"
@@ -380,6 +447,16 @@ def review_pull_request(pr_number):
     
     except Exception as e:
         logger.error(f"Error reviewing pull request #{pr_number}: {e}")
+        
+        # Record failed review in state if available
+        if pr_review_state:
+            pr_review_state.record_review_completion(pr_number, success=False)
+        
+        # Update lock file with error information
+        with open(lock_file, 'a') as f:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"Error: {timestamp} - {str(e)}\n")
+        
         return {
             'success': False,
             'error': str(e)

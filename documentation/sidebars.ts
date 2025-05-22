@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/configuration',
         'user-guide/usage',
         'user-guide/issue-management',
+        'user-guide/subtask-workflow',
         'user-guide/troubleshooting',
       ],
     },

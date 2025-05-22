@@ -1,11 +1,14 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Knocodex Documentation Website Styles
+ * Enhanced styling for professional documentation appearance
  */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Knocodex Brand Colors */
 :root {
+  /* Primary brand colors */
   --ifm-color-primary: #0073ff;
   --ifm-color-primary-dark: #005ccc;
   --ifm-color-primary-darker: #0056bf;
@@ -13,10 +16,31 @@
   --ifm-color-primary-light: #338fff;
   --ifm-color-primary-lighter: #4d99ff;
   --ifm-color-primary-lightest: #66abff;
+  
+  /* Secondary colors */
+  --knocodex-secondary: #FF6B6B;
+  --knocodex-secondary-dark: #e25050;
+  --knocodex-success: #4CAF50;
+  --knocodex-warning: #F9A825;
+  
+  /* UI colors */
+  --knocodex-background-light: #f8f9fa;
+  --knocodex-card-border: rgba(0, 0, 0, 0.1);
+  --knocodex-card-shadow: rgba(0, 0, 0, 0.05);
+  
+  /* Typography */
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  --ifm-heading-font-weight: 600;
+  --ifm-h1-font-size: 2.5rem;
+  
+  /* Code blocks */
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 115, 255, 0.1);
-  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
-  --ifm-font-family-monospace: 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  
+  /* Other values */
+  --ifm-navbar-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  --ifm-toc-border-color: rgba(0, 0, 0, 0.1);
 }
 
 /* Dark mode theme with Knocodex brand colors */
@@ -28,5 +52,125 @@
   --ifm-color-primary-light: #80bbff;
   --ifm-color-primary-lighter: #99c7ff;
   --ifm-color-primary-lightest: #b3d3ff;
+  
+  /* Dark UI colors */
+  --knocodex-background-dark: #1a1a2e;
+  --knocodex-card-border: rgba(255, 255, 255, 0.1);
+  --knocodex-card-shadow: rgba(0, 0, 0, 0.3);
+  
   --docusaurus-highlighted-code-line-bg: rgba(102, 171, 255, 0.3);
+}
+
+/* Typography improvements */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--ifm-heading-font-weight);
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: var(--ifm-h1-font-size);
+  letter-spacing: -0.5px;
+}
+
+/* Content layout */
+.markdown > h2 {
+  margin-top: 2.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.markdown > h3 {
+  margin-top: 2rem;
+}
+
+/* Card styling */
+.card {
+  border: 1px solid var(--knocodex-card-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px var(--knocodex-card-shadow);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px var(--knocodex-card-shadow);
+}
+
+/* Code block styling */
+code {
+  border-radius: 4px;
+}
+
+.prism-code {
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+/* Hero section enhancements */
+.hero--primary {
+  background: linear-gradient(135deg, #0073ff 0%, #0056bf 100%);
+}
+
+[data-theme='dark'] .hero--primary {
+  background: linear-gradient(135deg, #0056bf 0%, #004599 100%);
+}
+
+.hero__title {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.hero__subtitle {
+  font-size: 1.3rem;
+  opacity: 0.9;
+}
+
+/* Feature section */
+.features_src-components-HomepageFeatures-styles-module {
+  padding: 3rem 0;
+}
+
+/* Button styling */
+.button {
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.button--lg {
+  padding: 0.75rem 1.5rem;
+}
+
+.button--secondary {
+  background-color: white;
+  color: var(--ifm-color-primary);
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.button--secondary:hover {
+  background-color: white;
+  color: var(--ifm-color-primary-darker);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .button--secondary {
+  background-color: var(--knocodex-background-dark);
+  color: var(--ifm-color-primary-lightest);
+}
+
+/* Navbar improvements */
+.navbar {
+  box-shadow: var(--ifm-navbar-shadow);
+}
+
+/* Footer enhancements */
+.footer {
+  background-color: var(--ifm-color-primary-darkest);
+  color: white;
+  padding: 4rem 0 2rem;
 }

@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from knocodex.models.subtask import Subtask, SubtaskPlan, SubtaskStatus, SubtaskType
 from knocodex.workflow_engine import SubtaskWorkflowEngine, WorkflowConfig
-from knocodex.utils.redis_utils import SubtaskQueueCoordinator, ProjectQueueManager
+from knocodex.utils.redis_utils import SubtaskQueueCoordinator, ProjectQueueManager, TaskLock
 from knocodex.project_manager import ProjectManager
 
 
@@ -270,7 +270,7 @@ def run_claude_code_for_subtask(subtask: Subtask, task_id: str, project_id: str)
 
 
 def execute_subtask(subtask_data: Dict) -> Dict:
-    """Execute a single subtask"""
+    """Execute a single subtask with project lock verification"""
     try:
         # Parse subtask data
         task_id = subtask_data['task_id']
@@ -279,8 +279,18 @@ def execute_subtask(subtask_data: Dict) -> Dict:
         
         logger.info(f"Starting execution of subtask {subtask_id} for task {task_id}")
         
+        # Initialize queue manager and check project lock
+        queue_manager = ProjectQueueManager(redis_url)
+        project_lock = queue_manager.get_project_lock(project_id)
+        
+        # Verify the lock is held (should be held by the workflow that scheduled this task)
+        if not project_lock.is_locked():
+            error_msg = f"Project lock not held for {project_id}. Task {task_id} may have been abandoned."
+            logger.warning(error_msg)
+            # Continue execution but log the warning
+        
         # Get subtask details from Redis
-        coordinator = SubtaskQueueCoordinator(redis_conn)
+        coordinator = SubtaskQueueCoordinator(redis_url)
         subtask_plan = coordinator.get_subtask_plan(task_id)
         
         if not subtask_plan:
@@ -290,9 +300,21 @@ def execute_subtask(subtask_data: Dict) -> Dict:
         
         # Find the specific subtask
         subtask = None
-        for st in subtask_plan.subtasks:
-            if st.id == subtask_id:
-                subtask = st
+        subtasks = subtask_plan.get('subtasks', [])
+        for st_data in subtasks:
+            if st_data.get('id') == subtask_id:
+                # Convert dict to Subtask object if needed
+                if isinstance(st_data, dict):
+                    subtask = Subtask(
+                        id=st_data['id'],
+                        title=st_data.get('title', ''),
+                        description=st_data.get('description', ''),
+                        type=SubtaskType(st_data.get('type', 'implement')),
+                        dependencies=st_data.get('dependencies', []),
+                        priority=st_data.get('priority', 'medium')
+                    )
+                else:
+                    subtask = st_data
                 break
         
         if not subtask:
@@ -301,7 +323,7 @@ def execute_subtask(subtask_data: Dict) -> Dict:
             return {'success': False, 'error': error_msg}
         
         # Mark subtask as in progress
-        coordinator.update_subtask_status(task_id, subtask_id, SubtaskStatus.IN_PROGRESS)
+        coordinator.update_subtask_status(task_id, subtask_id, SubtaskStatus.IN_PROGRESS.value)
         
         # Execute the subtask
         result = run_claude_code_for_subtask(subtask, task_id, project_id)
@@ -323,11 +345,11 @@ def execute_subtask(subtask_data: Dict) -> Dict:
         # Try to mark subtask as failed if we have the IDs
         try:
             if 'task_id' in subtask_data and 'subtask_id' in subtask_data:
-                coordinator = SubtaskQueueCoordinator(redis_conn)
+                coordinator = SubtaskQueueCoordinator(redis_url)
                 coordinator.update_subtask_status(
                     subtask_data['task_id'], 
                     subtask_data['subtask_id'], 
-                    SubtaskStatus.FAILED
+                    SubtaskStatus.FAILED.value
                 )
                 workflow_engine.handle_subtask_completion(
                     subtask_data['task_id'], 
@@ -389,13 +411,16 @@ if __name__ == "__main__":
     # Get queue configuration
     project_id = os.environ.get("PROJECT_ID", "default")
     
-    # Use project manager for queue selection if project ID provided
-    if project_id != "default" and project_manager.project_exists(project_id):
-        queue = project_manager.get_project_queue(project_id)
+    # Initialize queue manager for project-specific queues
+    queue_manager = ProjectQueueManager(redis_url)
+    
+    # Use project-specific queue
+    if project_id != "default":
+        queue = queue_manager.get_project_queue(project_id)
         logger.info(f"Using project-specific queue for project: {project_id}")
     else:
-        # Fallback to default queue naming
-        queue_name = os.environ.get("REDIS_QUEUE", f"knocodex_{project_id}")
+        # Fallback to default queue naming for backward compatibility
+        queue_name = os.environ.get("REDIS_QUEUE", "knocodex:default:tasks")
         queue = Queue(queue_name, connection=redis_conn)
         logger.info(f"Using default queue: {queue_name}")
     
@@ -404,6 +429,7 @@ if __name__ == "__main__":
     
     logger.info(f"Worker listening on queue: {queue.name}")
     logger.info(f"Project ID: {project_id}")
+    logger.info(f"Worker will respect project locks for sequential processing")
     
     # Start processing
     worker.work()

@@ -107,9 +107,94 @@ def enqueue_task(queue, func, *args, **kwargs):
         return None
 
 
+class TaskLock:
+    """
+    Distributed task lock using Redis to ensure sequential processing.
+    """
+    
+    def __init__(self, redis_conn: Redis, lock_key: str, timeout: int = 3600):
+        """
+        Initialize task lock.
+        
+        Args:
+            redis_conn: Redis connection
+            lock_key: Unique lock key
+            timeout: Lock timeout in seconds (default: 1 hour)
+        """
+        self.redis_conn = redis_conn
+        self.lock_key = f"task_lock:{lock_key}"
+        self.timeout = timeout
+        self.acquired = False
+    
+    def acquire(self) -> bool:
+        """
+        Acquire the lock.
+        
+        Returns:
+            True if lock acquired, False otherwise
+        """
+        try:
+            result = self.redis_conn.set(
+                self.lock_key, 
+                "locked", 
+                nx=True,  # Only set if key doesn't exist
+                ex=self.timeout  # Set expiration
+            )
+            self.acquired = bool(result)
+            if self.acquired:
+                logger.info(f"Acquired lock: {self.lock_key}")
+            else:
+                logger.debug(f"Failed to acquire lock: {self.lock_key}")
+            return self.acquired
+        except Exception as e:
+            logger.error(f"Failed to acquire lock {self.lock_key}: {e}")
+            return False
+    
+    def release(self) -> bool:
+        """
+        Release the lock.
+        
+        Returns:
+            True if lock released, False otherwise
+        """
+        try:
+            if self.acquired:
+                result = self.redis_conn.delete(self.lock_key)
+                self.acquired = False
+                logger.info(f"Released lock: {self.lock_key}")
+                return bool(result)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to release lock {self.lock_key}: {e}")
+            return False
+    
+    def is_locked(self) -> bool:
+        """
+        Check if the lock is currently held.
+        
+        Returns:
+            True if locked, False otherwise
+        """
+        try:
+            return self.redis_conn.exists(self.lock_key) > 0
+        except Exception as e:
+            logger.error(f"Failed to check lock status {self.lock_key}: {e}")
+            return False
+    
+    def __enter__(self):
+        """Context manager entry."""
+        if not self.acquire():
+            raise RuntimeError(f"Failed to acquire lock: {self.lock_key}")
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.release()
+
+
 class ProjectQueueManager:
     """
-    Manages project-specific Redis queues for subtask processing.
+    Manages project-specific Redis queues for subtask processing with locking.
     """
     
     def __init__(self, redis_url: str = "redis://localhost:6379"):
@@ -128,12 +213,25 @@ class ProjectQueueManager:
         Returns:
             Redis queue for the project
         """
-        queue_name = f"knocodex_{project_name}"
+        queue_name = f"knocodex:{project_name}:tasks"
         
         if queue_name not in self._queues:
             self._queues[queue_name] = Queue(queue_name, connection=self.redis_conn)
         
         return self._queues[queue_name]
+    
+    def get_project_lock(self, project_name: str) -> TaskLock:
+        """
+        Get a task lock for the project to ensure sequential processing.
+        
+        Args:
+            project_name: Name of the project
+            
+        Returns:
+            TaskLock instance for the project
+        """
+        lock_key = f"project:{project_name}:processing"
+        return TaskLock(self.redis_conn, lock_key)
     
     def enqueue_subtask(self, project_name: str, subtask_data: Dict[str, Any]) -> Optional[str]:
         """
@@ -213,13 +311,13 @@ class ProjectQueueManager:
         """
         try:
             # Get all keys matching the pattern
-            keys = self.redis_conn.keys("rq:queue:knocodex_*")
+            keys = self.redis_conn.keys("rq:queue:knocodex:*:tasks")
             project_names = []
             for key in keys:
                 # Extract project name from key
                 key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                if key_str.startswith("rq:queue:knocodex_"):
-                    project_name = key_str.replace("rq:queue:knocodex_", "")
+                if key_str.startswith("rq:queue:knocodex:") and key_str.endswith(":tasks"):
+                    project_name = key_str.replace("rq:queue:knocodex:", "").replace(":tasks", "")
                     project_names.append(project_name)
             return project_names
         except Exception as e:

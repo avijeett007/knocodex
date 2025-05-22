@@ -34,7 +34,7 @@ knocodex setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/knocodex.git
+git clone https://github.com/avijeett007/knocodex.git
 
 # Navigate to the directory
 cd knocodex

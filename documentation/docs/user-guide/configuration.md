@@ -6,11 +6,30 @@ Knocodex offers extensive configuration options to customize its behavior for yo
 
 Knocodex uses a hierarchical configuration system:
 
-1. **Global Config**: `~/.knocodex/config.yaml` (system-wide settings)
-2. **Project Config**: `.knocodex/config.yaml` (project-specific settings)
+1. **Global Config**: `~/.knocodex/config.json` (system-wide settings)
+2. **Project Config**: `.knocodex/config.json` (project-specific settings)
 3. **Environment Variables**: Override any configuration value
 
 Project settings override global settings, and environment variables override both.
+
+## PR Review Configuration
+
+Knocodex includes an advanced PR review deduplication system to prevent reviewing the same PR multiple times:
+
+```json
+{
+  "pr_review_enabled": true,
+  "pr_review_mode": "never_repeat",
+  "pr_state_storage_path": null,
+  "pr_update_detection_enabled": true
+}
+```
+
+### PR Review Modes
+
+- **`never_repeat`**: Review each PR only once, never again (default)
+- **`on_updates`**: Re-review PRs when new commits are pushed
+- **`manual_only`**: Disable automatic PR reviews entirely
 
 ## Basic Configuration
 

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="knocodex",
-    version="0.2.0",
+    version="0.3.0",
     author="Knocodex Contributors",
     author_email="support@kno2gether.com",
     description="An open-source Python library for autonomous coding with AI agents with self improvement capabilities",

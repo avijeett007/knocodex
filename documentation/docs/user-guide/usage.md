@@ -23,6 +23,29 @@ knocodex status
 knocodex restart
 ```
 
+### PR Review Management
+
+Knocodex includes a PR review deduplication system that prevents the same PR from being reviewed multiple times. Here's how to use and configure it:
+
+```bash
+# Configure PR review mode (in .knocodex/config.json)
+{
+  "pr_review_mode": "never_repeat"  # Options: never_repeat, on_updates, manual_only
+}
+
+# Force a review for a specific PR (bypassing the deduplication system)
+knocodex review --force pr 123
+
+# Clear review history (will cause all PRs to be reviewed again)
+knocodex clear-review-history
+```
+
+#### Review Modes
+
+- **never_repeat**: Review each PR only once (default)
+- **on_updates**: Re-review PRs when new commits are pushed
+- **manual_only**: Disable automatic PR reviews entirely
+
 ### Monitoring and Dashboards
 
 ```bash

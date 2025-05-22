@@ -13,6 +13,7 @@ Knocodex is built with a modular architecture where each component has specific 
 - **Worker Processes**: Background job execution
 - **GitHub Integration**: Issue detection and PR management
 - **Claude Integration**: AI-powered code generation
+- **PR Review State Management**: Prevents duplicate PR reviews
 
 ## CLI Interface (`cli.py`)
 
@@ -624,6 +625,172 @@ def check_python_version():
 
 ```python
 import pytest
+```
+
+## PR Review State Management
+
+Knocodex includes a comprehensive PR review deduplication system to prevent reviewing the same PR multiple times. This system is composed of several components working together.
+
+### `PRReviewState` Class (`models/pr_review_state.py`)
+
+The `PRReviewState` class manages the review state tracking for pull requests:
+
+```python
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum, auto
+from typing import Dict, List, Optional
+
+@dataclass
+class PRReviewRecord:
+    """Record of a PR review."""
+    pr_number: int
+    repository: str
+    last_commit_sha: str
+    last_updated_at: datetime
+    review_timestamp: datetime
+    status: str = "completed"
+
+class PRReviewMode(Enum):
+    """Modes for PR review behavior."""
+    NEVER_REPEAT = auto()  # Never review a PR more than once
+    ON_UPDATES = auto()    # Only review a PR again if it has been updated
+    MANUAL_ONLY = auto()   # Only review PRs when manually triggered
+
+class PRReviewState:
+    """Manages PR review state to avoid duplicate reviews."""
+    
+    def needs_review(self, pr_number: int, repository: str, 
+                    last_commit_sha: str, last_updated_at: datetime) -> bool:
+        """Determine if a PR needs to be reviewed based on state and configuration."""
+        # Implementation checks if PR has been reviewed before and uses
+        # the configured review mode to determine if it should be reviewed again
+        
+    def record_review_start(self, pr_number: int, repository: str,
+                           last_commit_sha: str, last_updated_at: datetime) -> None:
+        """Record that a review is starting for this PR."""
+        # Implementation records the start of a review process
+        
+    def record_review_complete(self, pr_number: int, repository: str,
+                             last_commit_sha: str, status: str = "completed") -> None:
+        """Record that a review has completed for this PR."""
+        # Implementation marks the review as complete
+        
+    def clean_closed_prs(self, closed_pr_numbers: List[int], repository: str) -> None:
+        """Remove review records for PRs that have been closed/merged."""
+        # Implementation removes records for closed PRs to prevent unbounded growth
+```
+
+### `PRStateStore` Class (`storage/pr_state_store.py`)
+
+The `PRStateStore` class provides persistent storage for PR review state:
+
+```python
+import json
+import os
+import shutil
+import threading
+from datetime import datetime
+from typing import Dict, Any, Optional
+
+class PRStateStore:
+    """Thread-safe persistent storage for PR review state."""
+    
+    def __init__(self, storage_path: str = None):
+        """Initialize the PR state store with optional custom path."""
+        # Implementation sets up storage path and lock for thread safety
+        
+    def load(self) -> Dict[str, Any]:
+        """Load PR state data from storage."""
+        # Implementation loads and parses the JSON state file
+        
+    def save(self, data: Dict[str, Any]) -> bool:
+        """Save PR state data to storage."""
+        # Implementation safely writes data with backup/restore pattern
+        
+    def clear(self) -> bool:
+        """Clear all stored PR state data."""
+        # Implementation safely clears all stored state
+```
+
+### Enhanced GitHub Utilities (`utils/gh_utils.py`)
+
+Enhanced GitHub utilities support the PR review deduplication system:
+
+```python
+def get_pr_review_metadata(pr_number: int) -> Dict[str, Any]:
+    """Get metadata needed for PR review state tracking."""
+    # Implementation fetches PR metadata including last commit SHA and update time
+    
+def filter_prs_for_review(prs: List[Dict[str, Any]], review_state, 
+                         review_mode: str) -> List[Dict[str, Any]]:
+    """Filter PRs based on review state and configured mode."""
+    # Implementation filters PRs that don't need review based on state
+```
+
+### Updated Main Loop Logic
+
+The main polling loop has been updated to use the PR review state system:
+
+```python
+def check_github_prs():
+    """Check for open PRs to review, respecting review state."""
+    # Get PRs from GitHub
+    prs = get_open_prs()
+    
+    # Filter PRs based on review state
+    prs_to_review = filter_prs_for_review(
+        prs, 
+        review_state=pr_review_state,
+        review_mode=config.get("pr_review_mode", "never_repeat")
+    )
+    
+    # Process remaining PRs
+    for pr in prs_to_review:
+        # Record review start
+        pr_review_state.record_review_start(
+            pr["number"], 
+            repository, 
+            pr["last_commit_sha"],
+            pr["last_updated_at"]
+        )
+        
+        # Queue PR for review
+        queue_pr_review(pr)
+```
+
+### Worker Completion Handling
+
+The worker processes have been updated to record completed reviews:
+
+```python
+def process_pr_review(pr_number):
+    """Process a PR review."""
+    try:
+        # Get PR metadata
+        pr_metadata = get_pr_review_metadata(pr_number)
+        
+        # Perform the actual review
+        review_pr(pr_number)
+        
+        # Record successful completion
+        pr_review_state.record_review_complete(
+            pr_number,
+            repository,
+            pr_metadata["last_commit_sha"],
+            status="completed"
+        )
+    except Exception as e:
+        # Record failure
+        pr_review_state.record_review_complete(
+            pr_number,
+            repository,
+            pr_metadata.get("last_commit_sha", ""),
+            status="failed"
+        )
+        raise
+```
+
 from unittest.mock import Mock, patch
 from knocodex.agent_manager import AgentManager
 

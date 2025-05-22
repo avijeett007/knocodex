@@ -239,3 +239,58 @@ class Config:
         except:
             global_config = self.get_global_config()
             return global_config.get("enforce_pr_creation", True)
+            
+    def get_merged_config(self):
+        """Get merged configuration (project config overrides global config)"""
+        global_config = self.get_global_config()
+        
+        # If project config exists, merge it with global config
+        if self.project_path and self.project_config_file and self.project_config_file.exists():
+            try:
+                project_config = self.get_project_config()
+                # Merge project config with global config (project overrides global)
+                merged_config = global_config.copy()
+                merged_config.update(project_config)
+                return merged_config
+            except Exception as e:
+                logger.error(f"Failed to merge configurations: {e}")
+                return global_config
+        
+        return global_config
+
+
+# Functions for MCP server integration
+def get_config(project_path=None):
+    """
+    Get merged configuration for MCP server API.
+    
+    Args:
+        project_path: Optional project path
+        
+    Returns:
+        Dictionary containing merged configuration
+    """
+    config = Config(project_path)
+    return config.get_merged_config()
+
+
+def update_config(config_updates, project_path=None):
+    """
+    Update configuration for MCP server API.
+    
+    Args:
+        config_updates: Dictionary containing configuration updates
+        project_path: Optional project path
+        
+    Returns:
+        Updated configuration dictionary
+    """
+    config = Config(project_path)
+    
+    # Project config takes precedence for updates
+    if config.project_path and config.project_config_dir and config.project_config_dir.exists():
+        config.update_project_config(config_updates)
+    else:
+        config.update_global_config(config_updates)
+        
+    return config.get_merged_config()

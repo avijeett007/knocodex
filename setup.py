@@ -28,6 +28,13 @@ setup(
         "requests>=2.25.0",
         "colorama>=0.4.4",
         "tabulate>=0.8.9",
+        "fastapi>=0.100.0",
+        "uvicorn>=0.20.0",
+        "sse-starlette>=1.6.0",
+        "pydantic>=2.0.0",
+        "python-multipart>=0.0.6",
+        "psutil>=5.9.0",
+        "prometheus-client>=0.16.0",
     ],
     entry_points={
         "console_scripts": [

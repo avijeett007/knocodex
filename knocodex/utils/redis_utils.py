@@ -89,6 +89,23 @@ def get_redis_queue(redis_url="redis://localhost:6379", queue_name="knocodex"):
         logger.error(f"Failed to get Redis queue: {e}")
         return None
 
+
+def get_project_queue_manager(redis_url="redis://localhost:6379"):
+    """
+    Get a ProjectQueueManager instance for MCP server integration.
+    
+    Args:
+        redis_url: Redis server URL
+        
+    Returns:
+        ProjectQueueManager instance
+    """
+    try:
+        return ProjectQueueManager(redis_url=redis_url)
+    except Exception as e:
+        logger.error(f"Failed to create ProjectQueueManager: {e}")
+        return None
+
 def enqueue_task(queue, func, *args, **kwargs):
     """Enqueue a task in the Redis queue"""
     try:
@@ -323,6 +340,124 @@ class ProjectQueueManager:
         except Exception as e:
             logger.error(f"Failed to get project queue names: {e}")
             return []
+    
+    def get_queue_info(self) -> Dict[str, Any]:
+        """
+        Get overall queue information across all projects.
+        
+        Returns:
+            Dictionary with aggregated queue statistics
+        """
+        try:
+            total_size = 0
+            total_active = 0
+            total_failed = 0
+            total_completed = 0
+            total_workers = 0
+            
+            project_names = self.get_all_project_queues()
+            for project_name in project_names:
+                status = self.get_queue_status(project_name)
+                total_size += status.get('pending', 0)
+                total_active += status.get('started', 0)
+                total_failed += status.get('failed', 0)
+                total_completed += status.get('finished', 0)
+            
+            # Get worker count from Redis (simplified approach)
+            try:
+                # This is a simple worker count based on active connections
+                info = self.redis_conn.info()
+                total_workers = max(1, info.get('connected_clients', 1) - 1)  # Subtract 1 for current connection
+            except:
+                total_workers = 1
+            
+            return {
+                "size": total_size,
+                "active": total_active,
+                "failed": total_failed,
+                "completed": total_completed,
+                "workers": total_workers
+            }
+        except Exception as e:
+            logger.error(f"Failed to get queue info: {e}")
+            return {
+                "size": 0,
+                "active": 0,
+                "failed": 0,
+                "completed": 0,
+                "workers": 0
+            }
+    
+    def get_worker_info(self) -> Dict[str, Any]:
+        """
+        Get worker information.
+        
+        Returns:
+            Dictionary with worker statistics
+        """
+        try:
+            # For now, return basic worker info
+            # In a real implementation, this would query RQ workers
+            return {
+                "total": 1,
+                "active": 1,
+                "idle": 0,
+                "busy": 0,
+                "workers": [
+                    {
+                        "id": "worker-1",
+                        "status": "active",
+                        "current_job": None
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Failed to get worker info: {e}")
+            return {
+                "total": 0,
+                "active": 0,
+                "idle": 0,
+                "busy": 0,
+                "workers": []
+            }
+    
+    def health_check(self) -> None:
+        """
+        Check Redis health by performing a simple operation.
+        
+        Raises:
+            Exception if Redis is not healthy
+        """
+        try:
+            # Simple ping test
+            self.redis_conn.ping()
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            raise
+    
+    def get_redis_info(self) -> Dict[str, Any]:
+        """
+        Get Redis server information.
+        
+        Returns:
+            Dictionary with Redis server stats
+        """
+        try:
+            info = self.redis_conn.info()
+            return {
+                "connected_clients": info.get("connected_clients", 0),
+                "used_memory": info.get("used_memory", 0),
+                "used_memory_human": info.get("used_memory_human", "0B"),
+                "version": info.get("redis_version", "unknown")
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Redis info: {e}")
+            return {
+                "connected_clients": 0,
+                "used_memory": 0,
+                "used_memory_human": "0B",
+                "version": "unknown"
+            }
 
 
 class SubtaskQueueCoordinator:

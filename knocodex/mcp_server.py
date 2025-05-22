@@ -20,6 +20,7 @@ from .api.tasks import router as tasks_router
 from .api.events import router as events_router
 from .api.metrics import router as metrics_router
 from .api.config import router as config_router
+from .api.health import router as health_router
 from .models.mcp_task import MCPServerConfig
 from .config import get_config
 
@@ -101,13 +102,14 @@ class MCPServer:
         self.app.include_router(events_router, prefix="/api/v1")
         self.app.include_router(metrics_router, prefix="/api/v1")
         self.app.include_router(config_router, prefix="/api/v1")
+        self.app.include_router(health_router)
         
         # Add root endpoint
         @self.app.get("/")
         async def root():
             """Root endpoint with server information"""
             return {
-                "name": "Knocodex MCP Server",
+                "service": "Knocodex MCP Server",
                 "version": "1.0.0",
                 "status": "running",
                 "config": {
@@ -117,12 +119,6 @@ class MCPServer:
                     "rate_limit_enabled": self.config.rate_limit_enabled
                 }
             }
-        
-        # Add health check endpoint
-        @self.app.get("/health")
-        async def health_check():
-            """Simple health check endpoint"""
-            return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
     
     def _setup_rate_limiting(self):
         """Setup rate limiting middleware"""

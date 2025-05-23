@@ -218,10 +218,10 @@ class TestSubtaskIntegration(unittest.TestCase):
             subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
             self.assertEqual(subtask_1['status'], SubtaskStatus.COMPLETED.value)
             
-            # Verify that the second subtask (dependent on first) is now ready
-            ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
-            self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0]['id'], "subtask-2")
+            # Verify that the second subtask (dependent on first) is now enqueued and in progress
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_2 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-2')
+            self.assertEqual(subtask_2['status'], SubtaskStatus.IN_PROGRESS.value)
             
             # Step 6: Complete the second subtask
             self.workflow_engine.handle_subtask_completion(
@@ -233,10 +233,10 @@ class TestSubtaskIntegration(unittest.TestCase):
             subtask_2 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-2')
             self.assertEqual(subtask_2['status'], SubtaskStatus.COMPLETED.value)
             
-            # Verify that the third subtask is now ready
-            ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
-            self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0]['id'], "subtask-3")
+            # Verify that the third subtask is now enqueued and in progress
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_3 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-3')
+            self.assertEqual(subtask_3['status'], SubtaskStatus.IN_PROGRESS.value)
             
             # Step 7: Complete the third subtask
             self.workflow_engine.handle_subtask_completion(
@@ -248,10 +248,10 @@ class TestSubtaskIntegration(unittest.TestCase):
             subtask_3 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-3')
             self.assertEqual(subtask_3['status'], SubtaskStatus.COMPLETED.value)
             
-            # Verify that the fourth subtask is now ready
-            ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
-            self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0]['id'], "subtask-4")
+            # Verify that the fourth subtask is now enqueued and in progress
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_4 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-4')
+            self.assertEqual(subtask_4['status'], SubtaskStatus.IN_PROGRESS.value)
             
             # Step 8: Complete the final subtask
             with patch.object(self.workflow_engine, '_handle_workflow_completion') as mock_completion:

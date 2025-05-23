@@ -659,3 +659,42 @@ class SubtaskQueueCoordinator:
         except Exception as e:
             logger.error(f"Failed to check if plan {plan_id} is complete: {e}")
             return False
+    
+    def store_subtask_result(self, plan_id: str, subtask_id: str, result: dict) -> bool:
+        """
+        Store the result of a completed subtask.
+        
+        Args:
+            plan_id: Unique plan identifier
+            subtask_id: ID of the subtask
+            result: Result data from subtask execution
+            
+        Returns:
+            True if result was stored successfully, False otherwise
+        """
+        try:
+            plan_data = self.get_subtask_plan(plan_id)
+            if not plan_data:
+                logger.error(f"Plan {plan_id} not found when storing result for subtask {subtask_id}")
+                return False
+            
+            # Find and update the subtask with the result
+            subtasks = plan_data.get('subtasks', [])
+            for subtask in subtasks:
+                if subtask['id'] == subtask_id:
+                    subtask['result'] = result
+                    break
+            else:
+                logger.error(f"Subtask {subtask_id} not found in plan {plan_id}")
+                return False
+            
+            # Update the plan in Redis
+            plan_key = f"subtask_plan:{plan_id}"
+            self.queue_manager.redis_conn.set(plan_key, json.dumps(plan_data))
+            
+            logger.info(f"Stored result for subtask {subtask_id} in plan {plan_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to store result for subtask {subtask_id} in plan {plan_id}: {e}")
+            return False

@@ -21,6 +21,7 @@ from .api.events import router as events_router
 from .api.metrics import router as metrics_router
 from .api.config import router as config_router
 from .api.health import router as health_router
+from .api.integration import router as integration_router
 from .models.mcp_task import MCPServerConfig
 from .config import get_config
 
@@ -102,6 +103,7 @@ class MCPServer:
         self.app.include_router(events_router, prefix="/api/v1")
         self.app.include_router(metrics_router, prefix="/api/v1")
         self.app.include_router(config_router, prefix="/api/v1")
+        self.app.include_router(integration_router, prefix="/api/v1")
         self.app.include_router(health_router)
         
         # Add root endpoint

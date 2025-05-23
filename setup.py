@@ -23,7 +23,7 @@ setup(
     install_requires=[
         "click>=8.0.0",
         "redis>=4.0.0",
-        "rq>=1.10.0",
+        "rq>=2.3.3",               # Specific version to ensure compatibility with Connection usage
         "rq-dashboard>=0.6.0",
         "requests>=2.25.0",
         "colorama>=0.4.4",
@@ -35,6 +35,8 @@ setup(
         "python-multipart>=0.0.6",
         "psutil>=5.9.0",
         "prometheus-client>=0.16.0",
+        "anyio>=3.6.2",            # Required for SSE and async functionality
+        "starlette>=0.40.0",       # Required for FastAPI
     ],
     entry_points={
         "console_scripts": [

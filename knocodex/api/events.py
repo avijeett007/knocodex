@@ -97,15 +97,19 @@ def should_include_event(
 
 
 async def metrics_event_generator(workflow: WorkflowEngine) -> AsyncGenerator[dict, None]:
-    """Generate metrics events for SSE"""
+    """Generate enhanced metrics events for SSE"""
     try:
         while True:
             # Get latest metrics from workflow engine
             metrics = await workflow.get_system_metrics()
             
+            # Get additional enhanced metrics
+            enhanced_metrics = await workflow.get_enhanced_metrics()
+            
             yield {
                 "event": "metrics",
                 "data": json.dumps({
+                    # Basic metrics
                     "total_tasks": metrics.total_tasks,
                     "active_tasks": metrics.active_tasks,
                     "completed_tasks": metrics.completed_tasks,
@@ -114,7 +118,39 @@ async def metrics_event_generator(workflow: WorkflowEngine) -> AsyncGenerator[di
                     "worker_count": metrics.worker_count,
                     "average_task_duration": metrics.average_task_duration,
                     "success_rate": metrics.success_rate,
-                    "last_updated": metrics.last_updated.isoformat()
+                    "last_updated": metrics.last_updated.isoformat(),
+                    
+                    # Enhanced metrics for Phase 1
+                    "task_completion_rates": {
+                        "last_hour": enhanced_metrics.completion_rate_last_hour,
+                        "last_day": enhanced_metrics.completion_rate_last_day,
+                        "last_week": enhanced_metrics.completion_rate_last_week
+                    },
+                    "worker_performance": {
+                        "average_tasks_per_worker": enhanced_metrics.avg_tasks_per_worker,
+                        "worker_utilization": enhanced_metrics.worker_utilization,
+                        "fastest_worker_id": enhanced_metrics.fastest_worker_id,
+                        "slowest_worker_id": enhanced_metrics.slowest_worker_id,
+                        "worker_efficiency_scores": enhanced_metrics.worker_efficiency_scores
+                    },
+                    "queue_metrics": {
+                        "queue_depth": enhanced_metrics.queue_depth,
+                        "average_wait_time": enhanced_metrics.average_wait_time,
+                        "processing_time_percentiles": {
+                            "p50": enhanced_metrics.processing_time_p50,
+                            "p90": enhanced_metrics.processing_time_p90,
+                            "p95": enhanced_metrics.processing_time_p95,
+                            "p99": enhanced_metrics.processing_time_p99
+                        },
+                        "queue_growth_rate": enhanced_metrics.queue_growth_rate
+                    },
+                    "error_metrics": {
+                        "error_rate_last_hour": enhanced_metrics.error_rate_last_hour,
+                        "error_rate_last_day": enhanced_metrics.error_rate_last_day,
+                        "error_types": enhanced_metrics.error_types_breakdown,
+                        "most_common_error": enhanced_metrics.most_common_error,
+                        "retry_success_rate": enhanced_metrics.retry_success_rate
+                    }
                 })
             }
             

@@ -13,6 +13,8 @@ from typing import Dict, List, Optional, Any
 from redis import Redis
 from rq import Queue
 
+from ..models.subtask import SubtaskStatus
+
 logger = logging.getLogger("knocodex.utils.redis_utils")
 
 def check_redis_running():
@@ -471,6 +473,30 @@ class SubtaskQueueCoordinator:
         self.redis_conn = Redis.from_url(redis_url)
         self.queue_manager = ProjectQueueManager(redis_url)
     
+    def _make_json_serializable(self, obj: Any) -> Any:
+        """
+        Convert objects to JSON serializable format, handling enums and other types.
+        
+        Args:
+            obj: Object to serialize
+            
+        Returns:
+            JSON serializable version of the object
+        """
+        from enum import Enum
+        from datetime import datetime
+        
+        if isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_json_serializable(item) for item in obj]
+        else:
+            return obj
+    
     def store_subtask_plan(self, plan_id: str, plan_data: Dict[str, Any]) -> bool:
         """
         Store a subtask plan in Redis.
@@ -484,7 +510,9 @@ class SubtaskQueueCoordinator:
         """
         try:
             key = f"subtask_plan:{plan_id}"
-            self.redis_conn.set(key, json.dumps(plan_data), ex=86400)  # Expire after 24 hours
+            # Convert enum objects to their values for JSON serialization
+            serializable_data = self._make_json_serializable(plan_data)
+            self.redis_conn.set(key, json.dumps(serializable_data), ex=86400)  # Expire after 24 hours
             logger.info(f"Stored subtask plan {plan_id}")
             return True
         except Exception as e:
@@ -602,7 +630,7 @@ class SubtaskQueueCoordinator:
                 job_id = self.queue_manager.enqueue_subtask(project_name, subtask)
                 if job_id:
                     # Update subtask status to in_progress
-                    self.update_subtask_status(plan_id, subtask['id'], 'in_progress')
+                    self.update_subtask_status(plan_id, subtask['id'], SubtaskStatus.IN_PROGRESS)
                     enqueued_count += 1
             
             logger.info(f"Enqueued {enqueued_count} ready subtasks for plan {plan_id}")

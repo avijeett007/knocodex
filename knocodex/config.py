@@ -56,6 +56,33 @@ class Config:
             "gemini_api_key": "",  # Will be set from environment
             "openai_api_key": "",  # Will be set from environment
             "anthropic_api_key": "",  # Will be set from environment
+            # MCP Server Configuration
+            "mcp_server": {
+                "enabled": True,
+                "host": "localhost",
+                "port": 8080,
+                "cors_origins": ["*"],
+                "auth_enabled": False,
+                "auth_secret": None,
+                "max_connections": 100,
+                "sse_heartbeat_interval": 30,
+                "metrics_retention_days": 7,
+                "rate_limit_enabled": True,
+                "rate_limit_requests": 100,
+                "log_level": "INFO"
+            },
+            # Integration Configuration
+            "integration": {
+                "enabled": True,
+                "cli_commands_enabled": True,
+                "stats_enabled": True,
+                "health_checks_enabled": True,
+                "allowed_origins": ["*"],
+                "api_key_required": False,
+                "api_keys": [],
+                "rate_limit_per_minute": 60,
+                "cache_ttl_seconds": 300
+            }
         }
         
         # Default project configuration

@@ -159,3 +159,51 @@ class LogEntry(BaseModel):
     task_id: Optional[str] = Field(default=None, description="Associated task ID")
     worker_id: Optional[str] = Field(default=None, description="Worker ID")
     extra: Optional[Dict[str, Any]] = Field(default=None, description="Additional log data")
+
+
+class IntegrationConfig(BaseModel):
+    """Configuration model for external integrations"""
+    model_config = ConfigDict(extra="forbid")
+    
+    enabled: bool = Field(default=True, description="Enable integration endpoints")
+    cli_commands_enabled: bool = Field(default=True, description="Enable CLI command integration")
+    stats_enabled: bool = Field(default=True, description="Enable statistics endpoints")
+    health_checks_enabled: bool = Field(default=True, description="Enable health check endpoints")
+    allowed_origins: List[str] = Field(default=["*"], description="Allowed origins for integration requests")
+    api_key_required: bool = Field(default=False, description="Require API key for integration endpoints")
+    api_keys: List[str] = Field(default_factory=list, description="Valid API keys for integration")
+    rate_limit_per_minute: int = Field(default=60, ge=1, description="Rate limit for integration endpoints")
+    cache_ttl_seconds: int = Field(default=300, ge=60, description="Cache TTL for expensive operations")
+
+
+class SystemStats(BaseModel):
+    """Model for comprehensive system statistics"""
+    timestamp: datetime = Field(..., description="Statistics timestamp")
+    tasks: Dict[str, int] = Field(..., description="Task statistics by status")
+    performance: Dict[str, float] = Field(..., description="Performance metrics")
+    system: Dict[str, Any] = Field(..., description="System resource metrics")
+    queue: Dict[str, int] = Field(..., description="Queue statistics")
+    workers: Dict[str, int] = Field(..., description="Worker statistics")
+    trends: Optional[Dict[str, List[float]]] = Field(default=None, description="Trend data")
+    alerts: List[Dict[str, Any]] = Field(default_factory=list, description="System alerts")
+
+
+class IntegrationHealth(BaseModel):
+    """Model for integration health status"""
+    status: str = Field(..., description="Overall health status")
+    timestamp: datetime = Field(..., description="Health check timestamp")
+    services: Dict[str, Dict[str, Any]] = Field(..., description="Individual service health")
+    capabilities: List[str] = Field(..., description="Available capabilities")
+    version: str = Field(..., description="System version")
+    uptime_seconds: float = Field(..., description="System uptime in seconds")
+    system_info: Optional[Dict[str, Any]] = Field(default=None, description="Detailed system information")
+    integration_ready: bool = Field(..., description="Ready for external integrations")
+
+
+class CLIOptions(BaseModel):
+    """Model for CLI configuration options"""
+    commands: Dict[str, Dict[str, Any]] = Field(..., description="Available CLI commands")
+    options: Dict[str, Dict[str, Any]] = Field(..., description="Global CLI options")
+    environment_variables: Dict[str, str] = Field(..., description="Required environment variables")
+    project_structure: Dict[str, Any] = Field(..., description="Expected project structure")
+    integrations: Dict[str, Dict[str, Any]] = Field(..., description="Integration-specific options")

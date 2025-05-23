@@ -22,7 +22,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "click>=8.0.0",
-        "redis>=4.0.0",
+        "redis>=3.5.3,<5.0.0",     # Broader range for better Python compatibility
         "rq>=2.3.3",               # Specific version to ensure compatibility with Connection usage
         "rq-dashboard>=0.6.0",
         "requests>=2.25.0",

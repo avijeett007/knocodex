@@ -387,9 +387,8 @@ def review_pull_request(pr_number):
         
         pr_state_storage_path = config.get("pr_state_storage_path")
         
-        # Import PR review state management
-        sys.path.insert(0, os.path.join(project_path, "knocodex"))
-        from models.pr_review_state import PRReviewState
+        # Import PR review state management using absolute import
+        from knocodex.models.pr_review_state import PRReviewState
         
         pr_review_state = PRReviewState(pr_state_storage_path)
         logger.info("Initialized PR review state tracking")

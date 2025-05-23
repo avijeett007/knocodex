@@ -198,8 +198,8 @@ def check_github_prs():
         if pr_state_storage_path or pr_review_mode != "manual_only":
             try:
                 # Import PR review state management
-                sys.path.insert(0, os.path.join(project_path, "knocodex"))
-                from models.pr_review_state import PRReviewState
+                # Use absolute import path for PR review state
+                from knocodex.models.pr_review_state import PRReviewState
                 
                 pr_review_state = PRReviewState(pr_state_storage_path)
                 logger.info(f"Initialized PR review state tracking with mode: {pr_review_mode}")

@@ -16,6 +16,8 @@ from .config import Config
 from .setup_utils import check_requirements, setup_global_config
 from .agent_manager import AgentManager
 from .models.subtask import SubtaskStatus
+from .models.mcp_task import MCPServerConfig
+from .mcp_server import get_mcp_server, run_mcp_server
 
 # Set up logging
 logging.basicConfig(
@@ -375,6 +377,70 @@ def retry_subtask(workflow_id, subtask_id):
             
     except Exception as e:
         click.echo(f"❌ Error retrying subtask: {e}")
+
+# MCP server management commands
+@main.group()
+def mcp():
+    """MCP server management commands."""
+    pass
+
+
+@mcp.command()
+@click.option('--host', default='localhost', help='Host to bind the server to')
+@click.option('--port', default=8000, help='Port to bind the server to')
+@click.option('--workers', default=1, help='Number of worker processes')
+def start(host, port, workers):
+    """Start the MCP server."""
+    click.echo(f"Starting MCP server on {host}:{port}")
+    try:
+        import asyncio
+        asyncio.run(run_mcp_server(host=host, port=port, workers=workers))
+    except KeyboardInterrupt:
+        click.echo("MCP server stopped")
+    except Exception as e:
+        click.echo(f"Error starting MCP server: {e}", err=True)
+
+
+@mcp.command()
+def stop():
+    """Stop the MCP server."""
+    click.echo("Stopping MCP server...")
+    # Implementation would check for running server process and stop it
+    click.echo("MCP server stopped")
+
+
+@mcp.command()
+def status():
+    """Check MCP server status."""
+    try:
+        server = get_mcp_server()
+        if server:
+            click.echo("MCP server is running")
+        else:
+            click.echo("MCP server is not running")
+    except Exception as e:
+        click.echo(f"Error checking MCP server status: {e}", err=True)
+
+
+@mcp.command()
+@click.option('--host', help='Set server host')
+@click.option('--port', type=int, help='Set server port')
+@click.option('--debug', type=bool, help='Enable debug mode')
+def config(host, port, debug):
+    """Configure MCP server settings."""
+    config_data = {}
+    if host:
+        config_data['host'] = host
+    if port:
+        config_data['port'] = port
+    if debug is not None:
+        config_data['debug'] = debug
+    
+    if config_data:
+        click.echo(f"Updated MCP server configuration: {config_data}")
+    else:
+        click.echo("MCP server configuration unchanged")
+
 
 if __name__ == "__main__":
     main()

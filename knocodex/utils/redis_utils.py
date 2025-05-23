@@ -13,6 +13,8 @@ from typing import Dict, List, Optional, Any
 from redis import Redis
 from rq import Queue
 
+from ..models.subtask import SubtaskStatus
+
 logger = logging.getLogger("knocodex.utils.redis_utils")
 
 def check_redis_running():
@@ -87,6 +89,23 @@ def get_redis_queue(redis_url="redis://localhost:6379", queue_name="knocodex"):
         return queue
     except Exception as e:
         logger.error(f"Failed to get Redis queue: {e}")
+        return None
+
+
+def get_project_queue_manager(redis_url="redis://localhost:6379"):
+    """
+    Get a ProjectQueueManager instance for MCP server integration.
+    
+    Args:
+        redis_url: Redis server URL
+        
+    Returns:
+        ProjectQueueManager instance
+    """
+    try:
+        return ProjectQueueManager(redis_url=redis_url)
+    except Exception as e:
+        logger.error(f"Failed to create ProjectQueueManager: {e}")
         return None
 
 def enqueue_task(queue, func, *args, **kwargs):
@@ -323,6 +342,124 @@ class ProjectQueueManager:
         except Exception as e:
             logger.error(f"Failed to get project queue names: {e}")
             return []
+    
+    def get_queue_info(self) -> Dict[str, Any]:
+        """
+        Get overall queue information across all projects.
+        
+        Returns:
+            Dictionary with aggregated queue statistics
+        """
+        try:
+            total_size = 0
+            total_active = 0
+            total_failed = 0
+            total_completed = 0
+            total_workers = 0
+            
+            project_names = self.get_all_project_queues()
+            for project_name in project_names:
+                status = self.get_queue_status(project_name)
+                total_size += status.get('pending', 0)
+                total_active += status.get('started', 0)
+                total_failed += status.get('failed', 0)
+                total_completed += status.get('finished', 0)
+            
+            # Get worker count from Redis (simplified approach)
+            try:
+                # This is a simple worker count based on active connections
+                info = self.redis_conn.info()
+                total_workers = max(1, info.get('connected_clients', 1) - 1)  # Subtract 1 for current connection
+            except:
+                total_workers = 1
+            
+            return {
+                "size": total_size,
+                "active": total_active,
+                "failed": total_failed,
+                "completed": total_completed,
+                "workers": total_workers
+            }
+        except Exception as e:
+            logger.error(f"Failed to get queue info: {e}")
+            return {
+                "size": 0,
+                "active": 0,
+                "failed": 0,
+                "completed": 0,
+                "workers": 0
+            }
+    
+    def get_worker_info(self) -> Dict[str, Any]:
+        """
+        Get worker information.
+        
+        Returns:
+            Dictionary with worker statistics
+        """
+        try:
+            # For now, return basic worker info
+            # In a real implementation, this would query RQ workers
+            return {
+                "total": 1,
+                "active": 1,
+                "idle": 0,
+                "busy": 0,
+                "workers": [
+                    {
+                        "id": "worker-1",
+                        "status": "active",
+                        "current_job": None
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Failed to get worker info: {e}")
+            return {
+                "total": 0,
+                "active": 0,
+                "idle": 0,
+                "busy": 0,
+                "workers": []
+            }
+    
+    def health_check(self) -> None:
+        """
+        Check Redis health by performing a simple operation.
+        
+        Raises:
+            Exception if Redis is not healthy
+        """
+        try:
+            # Simple ping test
+            self.redis_conn.ping()
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            raise
+    
+    def get_redis_info(self) -> Dict[str, Any]:
+        """
+        Get Redis server information.
+        
+        Returns:
+            Dictionary with Redis server stats
+        """
+        try:
+            info = self.redis_conn.info()
+            return {
+                "connected_clients": info.get("connected_clients", 0),
+                "used_memory": info.get("used_memory", 0),
+                "used_memory_human": info.get("used_memory_human", "0B"),
+                "version": info.get("redis_version", "unknown")
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Redis info: {e}")
+            return {
+                "connected_clients": 0,
+                "used_memory": 0,
+                "used_memory_human": "0B",
+                "version": "unknown"
+            }
 
 
 class SubtaskQueueCoordinator:
@@ -335,6 +472,30 @@ class SubtaskQueueCoordinator:
         self.redis_url = redis_url
         self.redis_conn = Redis.from_url(redis_url)
         self.queue_manager = ProjectQueueManager(redis_url)
+    
+    def _make_json_serializable(self, obj: Any) -> Any:
+        """
+        Convert objects to JSON serializable format, handling enums and other types.
+        
+        Args:
+            obj: Object to serialize
+            
+        Returns:
+            JSON serializable version of the object
+        """
+        from enum import Enum
+        from datetime import datetime
+        
+        if isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_json_serializable(item) for item in obj]
+        else:
+            return obj
     
     def store_subtask_plan(self, plan_id: str, plan_data: Dict[str, Any]) -> bool:
         """
@@ -349,7 +510,9 @@ class SubtaskQueueCoordinator:
         """
         try:
             key = f"subtask_plan:{plan_id}"
-            self.redis_conn.set(key, json.dumps(plan_data), ex=86400)  # Expire after 24 hours
+            # Convert enum objects to their values for JSON serialization
+            serializable_data = self._make_json_serializable(plan_data)
+            self.redis_conn.set(key, json.dumps(serializable_data), ex=86400)  # Expire after 24 hours
             logger.info(f"Stored subtask plan {plan_id}")
             return True
         except Exception as e:
@@ -467,7 +630,7 @@ class SubtaskQueueCoordinator:
                 job_id = self.queue_manager.enqueue_subtask(project_name, subtask)
                 if job_id:
                     # Update subtask status to in_progress
-                    self.update_subtask_status(plan_id, subtask['id'], 'in_progress')
+                    self.update_subtask_status(plan_id, subtask['id'], SubtaskStatus.IN_PROGRESS)
                     enqueued_count += 1
             
             logger.info(f"Enqueued {enqueued_count} ready subtasks for plan {plan_id}")

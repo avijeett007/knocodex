@@ -120,10 +120,31 @@ class AgentManager:
                 # Install dependencies
                 logger.info("Installing dependencies...")
                 pip_path = self.venv_dir / "bin" / "pip"
+                
+                # First update pip
+                subprocess.run(
+                    [str(pip_path), "install", "--upgrade", "pip"],
+                    check=True,
+                )
+                
+                # Install core dependencies
                 subprocess.run(
                     [str(pip_path), "install", "redis", "rq", "rq-dashboard"],
                     check=True,
                 )
+                
+                # Install MCP server dependencies
+                subprocess.run(
+                    [str(pip_path), "install", "fastapi", "uvicorn", "sse-starlette", "pydantic", "python-multipart"],
+                    check=True,
+                )
+                
+                # Install development version of knocodex for maximum compatibility
+                subprocess.run(
+                    [str(pip_path), "install", "-e", str(self.project_path)],
+                    check=True,
+                )
+                
                 logger.info("Dependencies installed successfully")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Failed to create virtual environment: {e}")

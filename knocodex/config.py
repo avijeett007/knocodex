@@ -56,6 +56,33 @@ class Config:
             "gemini_api_key": "",  # Will be set from environment
             "openai_api_key": "",  # Will be set from environment
             "anthropic_api_key": "",  # Will be set from environment
+            # MCP Server Configuration
+            "mcp_server": {
+                "enabled": True,
+                "host": "localhost",
+                "port": 8080,
+                "cors_origins": ["*"],
+                "auth_enabled": False,
+                "auth_secret": None,
+                "max_connections": 100,
+                "sse_heartbeat_interval": 30,
+                "metrics_retention_days": 7,
+                "rate_limit_enabled": True,
+                "rate_limit_requests": 100,
+                "log_level": "INFO"
+            },
+            # Integration Configuration
+            "integration": {
+                "enabled": True,
+                "cli_commands_enabled": True,
+                "stats_enabled": True,
+                "health_checks_enabled": True,
+                "allowed_origins": ["*"],
+                "api_key_required": False,
+                "api_keys": [],
+                "rate_limit_per_minute": 60,
+                "cache_ttl_seconds": 300
+            }
         }
         
         # Default project configuration
@@ -239,3 +266,58 @@ class Config:
         except:
             global_config = self.get_global_config()
             return global_config.get("enforce_pr_creation", True)
+            
+    def get_merged_config(self):
+        """Get merged configuration (project config overrides global config)"""
+        global_config = self.get_global_config()
+        
+        # If project config exists, merge it with global config
+        if self.project_path and self.project_config_file and self.project_config_file.exists():
+            try:
+                project_config = self.get_project_config()
+                # Merge project config with global config (project overrides global)
+                merged_config = global_config.copy()
+                merged_config.update(project_config)
+                return merged_config
+            except Exception as e:
+                logger.error(f"Failed to merge configurations: {e}")
+                return global_config
+        
+        return global_config
+
+
+# Functions for MCP server integration
+def get_config(project_path=None):
+    """
+    Get merged configuration for MCP server API.
+    
+    Args:
+        project_path: Optional project path
+        
+    Returns:
+        Dictionary containing merged configuration
+    """
+    config = Config(project_path)
+    return config.get_merged_config()
+
+
+def update_config(config_updates, project_path=None):
+    """
+    Update configuration for MCP server API.
+    
+    Args:
+        config_updates: Dictionary containing configuration updates
+        project_path: Optional project path
+        
+    Returns:
+        Updated configuration dictionary
+    """
+    config = Config(project_path)
+    
+    # Project config takes precedence for updates
+    if config.project_path and config.project_config_dir and config.project_config_dir.exists():
+        config.update_project_config(config_updates)
+    else:
+        config.update_global_config(config_updates)
+        
+    return config.get_merged_config()

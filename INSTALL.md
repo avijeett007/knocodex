@@ -1,6 +1,6 @@
 # Installation Guide for Knocodex
 
-This guide provides step-by-step instructions for installing and setting up Knocodex.
+This guide provides comprehensive instructions for installing and setting up Knocodex in various Python environments.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ There are two ways to install Knocodex:
 1. **Using pip** (Recommended)
 2. **Installing from source**
 
-## Option 1: Using pip
+## Option 1: Using pip (Recommended)
 
 ```bash
 # Install Knocodex
@@ -49,6 +49,112 @@ knocodex setup
 ## Global Setup
 
 When you run `knocodex setup`, the following steps are performed:
+
+1. Creates a global `.knocodex` directory in your home folder
+2. Sets up global configuration
+3. Checks for dependencies like Redis, GitHub CLI
+4. Configures access to AI models (Claude, OpenAI, etc.)
+
+## Project-Specific Setup
+
+After installing Knocodex globally, you need to initialize it in each project where you want to use it:
+
+```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Initialize Knocodex in this project
+knocodex init
+```
+
+The `knocodex init` command performs these important steps:
+
+1. Creates a `.knocodex` directory in your project (automatically added to `.gitignore`)
+2. Sets up project-specific configuration
+3. **Creates a dedicated virtual environment** in `.knocodex/venv`
+4. Installs all required dependencies in this isolated environment, including:
+   - Redis client libraries
+   - RQ (Redis Queue) and dashboard
+   - FastAPI, Uvicorn, and SSE-Starlette for MCP server
+   - Pydantic and other required dependencies
+5. Configures command files for interaction with AI agents
+
+> **Note:** The project-specific virtual environment ensures that Knocodex works consistently regardless of your global Python environment (conda, venv, uv, etc.)
+
+## Starting Knocodex
+
+After initializing, you can start Knocodex:
+
+```bash
+knocodex start
+```
+
+This command launches several components:
+1. Redis server (if not already running)
+2. Worker process for handling tasks
+3. Subtask worker for workflow management
+4. RQ dashboard for monitoring
+5. Main polling loop for checking GitHub issues/PRs
+
+## Stopping Knocodex
+
+```bash
+knocodex stop
+```
+
+## Troubleshooting
+
+### Missing Dependency Errors
+
+If you encounter errors about missing Python modules like:
+
+```
+ModuleNotFoundError: No module named 'pydantic'
+```
+
+Try these steps:
+
+1. **Reinitialize the project**:
+   ```bash
+   knocodex stop
+   rm -rf .knocodex/venv  # Remove the existing virtual environment
+   knocodex init           # Recreate with all dependencies
+   knocodex start
+   ```
+
+2. **Install missing dependencies manually**:
+   ```bash
+   .knocodex/venv/bin/pip install pydantic fastapi uvicorn sse-starlette
+   ```
+
+3. **Install knocodex in development mode in the virtual environment**:
+   ```bash
+   .knocodex/venv/bin/pip install -e .
+   ```
+
+### PR Review Issues
+
+If Knocodex repeatedly reviews the same PR:
+
+1. Ensure PR review state storage is configured:
+   ```bash
+   mkdir -p .knocodex/state
+   echo '{}' > .knocodex/state/pr_review_state.json
+   ```
+
+2. Update your configuration to set the PR state storage path:
+   ```python
+   python -c "import json; config = json.load(open('.knocodex/config.json')); config['pr_state_storage_path'] = '.knocodex/state/pr_review_state.json'; json.dump(config, open('.knocodex/config.json', 'w'), indent=2)"
+   ```
+
+3. Restart Knocodex:
+   ```bash
+   knocodex stop && knocodex start
+   ```
+
+### Environment Compatibility
+
+Knocodex is designed to work consistently across different Python environments:
 
 1. Check for required dependencies
 2. Install missing dependencies (GitHub CLI, Redis, Claude Code)

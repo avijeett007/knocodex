@@ -92,6 +92,11 @@ class TestSubtaskIntegration(unittest.TestCase):
         # Set the coordinator on the workflow engine
         self.workflow_engine.coordinator = self.coordinator
         
+        # Mock the queue enqueue operation to return a valid job ID
+        mock_job = MagicMock()
+        mock_job.id = "job-123"
+        self.coordinator.queue_manager.enqueue_subtask = MagicMock(return_value="job-123")
+        
     def tearDown(self):
         """Tear down test fixtures"""
         # Clean up the temporary directory
@@ -197,15 +202,11 @@ class TestSubtaskIntegration(unittest.TestCase):
             # Step 4: Initialize the workflow
             self.workflow_engine._execute_workflow(task_id, project_id)
             
-            # Verify that the first subtask (with no dependencies) is ready to execute
-            ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
-            self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0], "subtask-1")
-            
-            # Check the status of subtask-1
-            subtask1_status_key = f"subtask_status:{task_id}:subtask-1"
-            status = self.redis_mock.get(subtask1_status_key)
-            self.assertEqual(status, SubtaskStatus.PENDING.value.encode())
+            # Verify that the first subtask (with no dependencies) was enqueued
+            # After enqueuing, it should change from pending to in_progress
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
+            self.assertEqual(subtask_1['status'], SubtaskStatus.IN_PROGRESS.value)
             
             # Step 5: Complete the first subtask
             self.workflow_engine.handle_subtask_completion(
@@ -213,13 +214,14 @@ class TestSubtaskIntegration(unittest.TestCase):
             )
             
             # Verify the first subtask is marked as completed
-            status = self.redis_mock.get(subtask1_status_key)
-            self.assertEqual(status, SubtaskStatus.COMPLETED.value.encode())
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
+            self.assertEqual(subtask_1['status'], SubtaskStatus.COMPLETED.value)
             
             # Verify that the second subtask (dependent on first) is now ready
             ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
             self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0], "subtask-2")
+            self.assertEqual(ready_subtasks[0]['id'], "subtask-2")
             
             # Step 6: Complete the second subtask
             self.workflow_engine.handle_subtask_completion(
@@ -227,14 +229,14 @@ class TestSubtaskIntegration(unittest.TestCase):
             )
             
             # Verify the second subtask is marked as completed
-            subtask2_status_key = f"subtask_status:{task_id}:subtask-2"
-            status = self.redis_mock.get(subtask2_status_key)
-            self.assertEqual(status, SubtaskStatus.COMPLETED.value.encode())
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_2 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-2')
+            self.assertEqual(subtask_2['status'], SubtaskStatus.COMPLETED.value)
             
             # Verify that the third subtask is now ready
             ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
             self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0], "subtask-3")
+            self.assertEqual(ready_subtasks[0]['id'], "subtask-3")
             
             # Step 7: Complete the third subtask
             self.workflow_engine.handle_subtask_completion(
@@ -242,14 +244,14 @@ class TestSubtaskIntegration(unittest.TestCase):
             )
             
             # Verify the third subtask is marked as completed
-            subtask3_status_key = f"subtask_status:{task_id}:subtask-3"
-            status = self.redis_mock.get(subtask3_status_key)
-            self.assertEqual(status, SubtaskStatus.COMPLETED.value.encode())
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_3 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-3')
+            self.assertEqual(subtask_3['status'], SubtaskStatus.COMPLETED.value)
             
             # Verify that the fourth subtask is now ready
             ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
             self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0], "subtask-4")
+            self.assertEqual(ready_subtasks[0]['id'], "subtask-4")
             
             # Step 8: Complete the final subtask
             with patch.object(self.workflow_engine, '_handle_workflow_completion') as mock_completion:
@@ -258,9 +260,9 @@ class TestSubtaskIntegration(unittest.TestCase):
                 )
                 
                 # Verify the fourth subtask is marked as completed
-                subtask4_status_key = f"subtask_status:{task_id}:subtask-4"
-                status = self.redis_mock.get(subtask4_status_key)
-                self.assertEqual(status, SubtaskStatus.COMPLETED.value.encode())
+                plan_data = self.coordinator.get_subtask_plan(task_id)
+                subtask_4 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-4')
+                self.assertEqual(subtask_4['status'], SubtaskStatus.COMPLETED.value)
                 
                 # Verify that the workflow is marked as complete
                 self.assertTrue(self.workflow_engine._is_workflow_complete(task_id))
@@ -337,10 +339,10 @@ class TestSubtaskIntegration(unittest.TestCase):
             # Initialize the workflow
             self.workflow_engine._execute_workflow(task_id, project_id)
             
-            # Verify the first subtask is ready
-            ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
-            self.assertEqual(len(ready_subtasks), 1)
-            self.assertEqual(ready_subtasks[0], "subtask-1")
+            # Verify the first subtask was enqueued (changed to in_progress)
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
+            self.assertEqual(subtask_1['status'], SubtaskStatus.IN_PROGRESS.value)
             
             # Fail the first subtask
             self.workflow_engine.handle_subtask_completion(
@@ -348,9 +350,9 @@ class TestSubtaskIntegration(unittest.TestCase):
             )
             
             # Verify the subtask is marked as failed
-            subtask1_status_key = f"subtask_status:{task_id}:subtask-1"
-            status = self.redis_mock.get(subtask1_status_key)
-            self.assertEqual(status, SubtaskStatus.FAILED.value.encode())
+            plan_data = self.coordinator.get_subtask_plan(task_id)
+            subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
+            self.assertEqual(subtask_1['status'], SubtaskStatus.FAILED.value)
             
             # Verify no new subtasks are ready (since the dependency failed)
             ready_subtasks = self.coordinator.get_ready_subtasks(task_id)
@@ -361,8 +363,9 @@ class TestSubtaskIntegration(unittest.TestCase):
                 self.workflow_engine.retry_failed_subtask(task_id, "subtask-1")
                 
                 # Verify the subtask is reset to pending
-                status = self.redis_mock.get(subtask1_status_key)
-                self.assertEqual(status, SubtaskStatus.PENDING.value.encode())
+                plan_data = self.coordinator.get_subtask_plan(task_id)
+                subtask_1 = next(s for s in plan_data['subtasks'] if s['id'] == 'subtask-1')
+                self.assertEqual(subtask_1['status'], SubtaskStatus.PENDING.value)
                 
                 # Verify that the unblocked subtasks check was triggered
                 mock_check.assert_called_once_with(task_id)

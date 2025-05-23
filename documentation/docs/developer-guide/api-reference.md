@@ -10,6 +10,7 @@ This document provides comprehensive API documentation for Knocodex's core modul
 - [Queue System](#queue-system)
 - [GitHub Integration](#github-integration)
 - [Claude Integration](#claude-integration)
+- [MCP Server](#mcp-server)
 - [Utilities](#utilities)
 
 ## CLI Module
@@ -582,6 +583,302 @@ def register_custom_commands(commands_dir: Optional[Path] = None) -> None:
     Raises:
         IOError: If templates cannot be written
     """
+```
+
+## MCP Server
+
+### `knocodex.mcp_server.MCPServer`
+
+FastAPI-based Model Context Protocol (MCP) server providing REST API endpoints for integration monitoring, health checks, and real-time event streaming.
+
+#### Constructor
+
+```python
+def __init__(self, config: Optional[Config] = None) -> None:
+    """Initialize MCP server with configuration.
+    
+    Args:
+        config: Knocodex configuration instance. Uses loaded config if None.
+    """
+```
+
+#### REST API Endpoints
+
+##### Health and Status
+
+**GET /api/v1/health**
+
+```python
+@app.get("/api/v1/health", response_model=HealthResponse)
+async def health_check(
+    include_details: bool = Query(default=False)
+) -> HealthResponse:
+    """Comprehensive health check endpoint.
+    
+    Args:
+        include_details: Whether to include detailed component status
+        
+    Returns:
+        HealthResponse with system status information
+    """
+```
+
+**GET /api/v1/integration/health**
+
+```python
+@app.get("/api/v1/integration/health", response_model=IntegrationHealth)
+async def get_integration_health() -> IntegrationHealth:
+    """Get integration-specific health status.
+    
+    Returns:
+        IntegrationHealth with service integration status
+    """
+```
+
+##### Metrics and Statistics
+
+**GET /api/v1/metrics**
+
+```python
+@app.get("/api/v1/metrics", response_model=MetricsResponse)
+async def get_metrics() -> MetricsResponse:
+    """Get comprehensive system metrics.
+    
+    Returns:
+        MetricsResponse with performance and usage metrics
+    """
+```
+
+**GET /api/v1/stats/summary**
+
+```python
+@app.get("/api/v1/stats/summary", response_model=SystemStats)
+async def get_stats_summary(
+    timeframe: str = Query(default="1h", regex="^(1h|24h|7d|30d)$")
+) -> SystemStats:
+    """Get system statistics summary.
+    
+    Args:
+        timeframe: Time period for statistics (1h, 24h, 7d, 30d)
+        
+    Returns:
+        SystemStats with aggregated statistics
+    """
+```
+
+##### Configuration and Integration
+
+**GET /api/v1/integration/cli-options**
+
+```python
+@app.get("/api/v1/integration/cli-options", response_model=CLIOptions)
+async def get_cli_options() -> CLIOptions:
+    """Get CLI configuration options.
+    
+    Returns:
+        CLIOptions with available command-line interface options
+    """
+```
+
+##### Real-time Event Streaming (SSE)
+
+**GET /api/v1/events/stream**
+
+```python
+@app.get("/api/v1/events/stream")
+async def event_stream(
+    request: Request,
+    task_type: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    since: Optional[str] = Query(default=None)
+) -> EventSourceResponse:
+    """Server-Sent Events stream for real-time updates.
+    
+    Args:
+        request: FastAPI request object
+        task_type: Filter by task type (analysis, implementation, review)
+        status: Filter by task status (pending, in_progress, completed, failed)
+        since: ISO timestamp to filter events from specific time
+        
+    Returns:
+        EventSourceResponse with streaming events
+    """
+```
+
+#### Response Models
+
+##### `HealthResponse`
+
+```python
+class HealthResponse(BaseModel):
+    """Health check response model."""
+    
+    status: str = Field(description="Overall health status")
+    timestamp: datetime = Field(description="Health check timestamp")
+    version: str = Field(description="Knocodex version")
+    uptime: float = Field(description="Server uptime in seconds")
+    components: Optional[Dict[str, ComponentHealth]] = Field(
+        description="Detailed component health status"
+    )
+```
+
+##### `MetricsResponse`
+
+```python
+class MetricsResponse(BaseModel):
+    """System metrics response model."""
+    
+    system: SystemMetrics = Field(description="System performance metrics")
+    queue: QueueMetrics = Field(description="Queue statistics")
+    tasks: TaskMetrics = Field(description="Task execution metrics")
+    timestamp: datetime = Field(description="Metrics collection timestamp")
+```
+
+##### `IntegrationHealth`
+
+```python
+class IntegrationHealth(BaseModel):
+    """Integration health status model."""
+    
+    redis_healthy: bool = Field(description="Redis connection status")
+    queue_operational: bool = Field(description="Queue system operational status")
+    workflow_engine_status: str = Field(description="Workflow engine status")
+    github_integration: bool = Field(description="GitHub API connectivity")
+    claude_integration: bool = Field(description="Claude Code availability")
+```
+
+##### `CLIOptions`
+
+```python
+class CLIOptions(BaseModel):
+    """CLI configuration options model."""
+    
+    available_commands: List[str] = Field(description="Available CLI commands")
+    default_config: Dict[str, Any] = Field(description="Default configuration values")
+    environment_variables: List[str] = Field(description="Supported environment variables")
+    config_file_locations: List[str] = Field(description="Configuration file search paths")
+```
+
+#### Event Types
+
+##### `TaskEvent`
+
+```python
+class TaskEvent(BaseModel):
+    """Task lifecycle event model."""
+    
+    event_type: str = Field(description="Event type identifier")
+    task_id: str = Field(description="Task identifier")
+    task_type: str = Field(description="Task type (analysis, implementation, review)")
+    status: str = Field(description="Current task status")
+    project_name: str = Field(description="Associated project name")
+    timestamp: datetime = Field(description="Event timestamp")
+    metadata: Optional[Dict[str, Any]] = Field(description="Additional event data")
+```
+
+#### Server Lifecycle
+
+##### `start_server`
+
+```python
+async def start_server(
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    reload: bool = False
+) -> None:
+    """Start the MCP server.
+    
+    Args:
+        host: Server host address
+        port: Server port number
+        reload: Enable auto-reload for development
+    """
+```
+
+##### `stop_server`
+
+```python
+async def stop_server() -> None:
+    """Gracefully stop the MCP server."""
+```
+
+#### Middleware and CORS
+
+The MCP server includes:
+- CORS middleware for cross-origin requests
+- Request/response logging middleware  
+- Error handling middleware for graceful error responses
+- Prometheus metrics collection middleware
+
+#### Health Monitoring
+
+The server provides comprehensive health monitoring including:
+- Redis connection health checks
+- Queue system operational status
+- Workflow engine availability
+- GitHub API connectivity tests
+- Claude Code integration status
+- System resource utilization metrics
+
+#### Real-time Updates
+
+Server-Sent Events (SSE) provide real-time streaming of:
+- Task status changes
+- Queue operations
+- System health updates
+- Error notifications
+- Performance metrics
+
+#### Usage Examples
+
+##### Basic Server Setup
+
+```python
+from knocodex.mcp_server import MCPServer
+from knocodex.config import Config
+
+# Initialize and start server
+config = Config.load()
+server = MCPServer(config)
+await server.start_server(host="0.0.0.0", port=8080)
+```
+
+##### Event Stream Client
+
+```python
+import httpx
+
+async with httpx.AsyncClient() as client:
+    async with client.stream(
+        "GET", 
+        "http://localhost:8080/api/v1/events/stream",
+        params={"task_type": "implementation", "status": "in_progress"}
+    ) as response:
+        async for line in response.aiter_lines():
+            if line.startswith("data: "):
+                event_data = json.loads(line[6:])
+                print(f"Task update: {event_data}")
+```
+
+##### Health Check Integration
+
+```python
+import requests
+
+def check_knocodex_health():
+    response = requests.get(
+        "http://localhost:8080/api/v1/health",
+        params={"include_details": True}
+    )
+    
+    if response.status_code == 200:
+        health_data = response.json()
+        print(f"System status: {health_data['status']}")
+        print(f"Uptime: {health_data['uptime']} seconds")
+        
+        if health_data.get("components"):
+            for component, status in health_data["components"].items():
+                print(f"{component}: {status['status']}")
 ```
 
 ## Utilities

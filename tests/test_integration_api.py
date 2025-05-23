@@ -29,7 +29,7 @@ class BaseIntegrationAPITest(unittest.TestCase):
             "agent_type": "claude",
             "ai_backend": "claude-code",
             "redis_url": "redis://localhost:6379",
-            "github_issue_label": "knocodex",
+            "github_issue_label": "knocodx",
             "claude_code_path": "/usr/local/bin/claude-code",
             "gh_path": "/usr/local/bin/gh",
             "sequential_processing": True,
@@ -104,61 +104,61 @@ class BaseIntegrationAPITest(unittest.TestCase):
 class TestCLIOptionsEndpoint(BaseIntegrationAPITest):
     """Tests for CLI options endpoint"""
     
-    def test_get_cli_options_success(self, client, mock_config):
+    def test_get_cli_options_success(self):
         """Test successful CLI options retrieval"""
-        with patch('knocodex.api.integration.get_config', return_value=mock_config):
-            response = client.get("/api/v1/cli/options")
+        with patch('knocodex.api.integration.get_config', return_value=self.mock_config):
+            response = self.client.get("/api/v1/cli/options")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Verify response structure
-        assert "commands" in data
-        assert "options" in data
-        assert "environment_variables" in data
-        assert "project_structure" in data
-        assert "integrations" in data
+        self.assertIn("commands", data)
+        self.assertIn("options", data)
+        self.assertIn("environment_variables", data)
+        self.assertIn("project_structure", data)
+        self.assertIn("integrations", data)
         
         # Verify specific commands
         commands = data["commands"]
-        assert "analyze-github-issue" in commands
-        assert "implement-github-issue" in commands
-        assert "document-project" in commands
-        assert "review-pull-request" in commands
+        self.assertIn("analyze-github-issue", commands)
+        self.assertIn("implement-github-issue", commands)
+        self.assertIn("document-project", commands)
+        self.assertIn("review-pull-request", commands)
         
         # Verify command structure
         analyze_cmd = commands["analyze-github-issue"]
-        assert "description" in analyze_cmd
-        assert "required_params" in analyze_cmd
-        assert "optional_params" in analyze_cmd
-        assert "issue_url" in analyze_cmd["required_params"]
+        self.assertIn("description", analyze_cmd)
+        self.assertIn("required_params", analyze_cmd)
+        self.assertIn("optional_params", analyze_cmd)
+        self.assertIn("issue_url", analyze_cmd["required_params"])
         
         # Verify options
         options = data["options"]
-        assert "project_path" in options
-        assert "agent_type" in options
-        assert options["agent_type"]["default"] == "claude"
+        self.assertIn("project_path", options)
+        self.assertIn("agent_type", options)
+        self.assertEqual(options["agent_type"]["default"], "claude")
         
         # Verify environment variables
         env_vars = data["environment_variables"]
-        assert "ANTHROPIC_API_KEY" in env_vars
-        assert "GITHUB_TOKEN" in env_vars
+        self.assertIn("ANTHROPIC_API_KEY", env_vars)
+        self.assertIn("GITHUB_TOKEN", env_vars)
         
         # Verify project structure
         structure = data["project_structure"]
-        assert "required_directories" in structure
-        assert "config_files" in structure
-        assert ".knocodex" in structure["required_directories"]
-        assert ".knocodex/config.json" in structure["config_files"]
+        self.assertIn("required_directories", structure)
+        self.assertIn("config_files", structure)
+        self.assertIn(".knocodx", structure["required_directories"])
+        self.assertIn(".knocodx/config.json", structure["config_files"])
 
 
-class TestStatsEndpoint:
+class TestStatsEndpoint(BaseIntegrationAPITest):
     """Tests for statistics summary endpoint"""
     
-    def test_get_stats_summary_success(self, client, mock_workflow_engine, mock_queue_manager):
+    def test_get_stats_summary_success(self):
         """Test successful stats retrieval"""
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=mock_workflow_engine), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodex.api.integration.get_workflow_engine', return_value=self.mock_workflow_engine), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('psutil.cpu_percent', return_value=25.4), \
              patch('psutil.virtual_memory') as mock_memory, \
              patch('psutil.disk_usage') as mock_disk, \
@@ -168,53 +168,53 @@ class TestStatsEndpoint:
             mock_memory.return_value.percent = 68.2
             mock_disk.return_value.percent = 45.1
             
-            response = client.get("/api/v1/stats/summary")
+            response = self.client.get("/api/v1/stats/summary")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Verify response structure
-        assert "timestamp" in data
-        assert "tasks" in data
-        assert "performance" in data
-        assert "system" in data
-        assert "queue" in data
-        assert "workers" in data
-        assert "trends" in data
-        assert "alerts" in data
+        self.assertIn("timestamp", data)
+        self.assertIn("tasks", data)
+        self.assertIn("performance", data)
+        self.assertIn("system", data)
+        self.assertIn("queue", data)
+        self.assertIn("workers", data)
+        self.assertIn("trends", data)
+        self.assertIn("alerts", data)
         
         # Verify task stats
         tasks = data["tasks"]
-        assert tasks["total"] == 100
-        assert tasks["pending"] == 5
-        assert tasks["completed"] == 85
-        assert tasks["failed"] == 5
+        self.assertEqual(tasks["total"], 100)
+        self.assertEqual(tasks["pending"], 5)
+        self.assertEqual(tasks["completed"], 85)
+        self.assertEqual(tasks["failed"], 5)
         
         # Verify performance metrics
         performance = data["performance"]
-        assert performance["avg_task_duration"] == 45.5
-        assert performance["success_rate"] == 85.0
+        self.assertEqual(performance["avg_task_duration"], 45.5)
+        self.assertEqual(performance["success_rate"], 85.0)
         
         # Verify system metrics
         system = data["system"]
-        assert system["cpu_usage"] == 25.4
-        assert system["memory_usage"] == 68.2
-        assert system["disk_usage"] == 45.1
+        self.assertEqual(system["cpu_usage"], 25.4)
+        self.assertEqual(system["memory_usage"], 68.2)
+        self.assertEqual(system["disk_usage"], 45.1)
         
         # Verify queue stats
         queue = data["queue"]
-        assert queue["size"] == 7
-        assert queue["processing"] == 3
+        self.assertEqual(queue["size"], 7)
+        self.assertEqual(queue["processing"], 3)
         
         # Verify worker stats
         workers = data["workers"]
-        assert workers["active"] == 3
-        assert workers["total"] == 4
+        self.assertEqual(workers["active"], 3)
+        self.assertEqual(workers["total"], 4)
     
-    def test_get_stats_summary_with_timeframe(self, client, mock_workflow_engine, mock_queue_manager):
+    def test_get_stats_summary_with_timeframe(self):
         """Test stats retrieval with custom timeframe"""
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=mock_workflow_engine), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodex.api.integration.get_workflow_engine', return_value=self.mock_workflow_engine), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('psutil.cpu_percent', return_value=25.4), \
              patch('psutil.virtual_memory') as mock_memory, \
              patch('psutil.disk_usage') as mock_disk:
@@ -222,73 +222,73 @@ class TestStatsEndpoint:
             mock_memory.return_value.percent = 68.2
             mock_disk.return_value.percent = 45.1
             
-            response = client.get("/api/v1/stats/summary?timeframe=1h&include_trends=false")
+            response = self.client.get("/api/v1/stats/summary?timeframe=1h&include_trends=false")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Should still have trends even when include_trends=false (mock data)
-        assert "trends" in data
+        self.assertIn("trends", data)
     
-    def test_get_stats_summary_invalid_timeframe(self, client):
+    def test_get_stats_summary_invalid_timeframe(self):
         """Test stats retrieval with invalid timeframe"""
-        response = client.get("/api/v1/stats/summary?timeframe=invalid")
+        response = self.client.get("/api/v1/stats/summary?timeframe=invalid")
         
-        assert response.status_code == 422  # Validation error
+        self.assertEqual(response.status_code, 422)  # Validation error
 
 
-class TestIntegrationHealthEndpoint:
+class TestIntegrationHealthEndpoint(BaseIntegrationAPITest):
     """Tests for integration health endpoint"""
     
-    def test_get_integration_health_success(self, client, mock_workflow_engine, mock_queue_manager):
+    def test_get_integration_health_success(self):
         """Test successful health check"""
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=mock_workflow_engine), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodex.api.integration.get_workflow_engine', return_value=self.mock_workflow_engine), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('redis.Redis') as mock_redis_class, \
              patch('time.time', return_value=1642248600.0), \
              patch('platform.platform', return_value='Darwin-23.5.0'), \
-             patch('platform.node', return_value='knocodex-server'):
+             patch('platform.node', return_value='knocodx-server'):
             
             # Mock Redis connection
             mock_redis = Mock()
             mock_redis.ping.return_value = True
             mock_redis_class.return_value = mock_redis
             
-            response = client.get("/api/v1/integration/health")
+            response = self.client.get("/api/v1/integration/health")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Verify response structure
-        assert "status" in data
-        assert "timestamp" in data
-        assert "services" in data
-        assert "capabilities" in data
-        assert "version" in data
-        assert "uptime_seconds" in data
-        assert "system_info" in data
-        assert "integration_ready" in data
+        self.assertIn("status", data)
+        self.assertIn("timestamp", data)
+        self.assertIn("services", data)
+        self.assertIn("capabilities", data)
+        self.assertIn("version", data)
+        self.assertIn("uptime_seconds", data)
+        self.assertIn("system_info", data)
+        self.assertIn("integration_ready", data)
         
         # Verify overall status
-        assert data["status"] == "healthy"
-        assert data["integration_ready"] is True
+        self.assertEqual(data["status"], "healthy")
+        self.assertTrue(data["integration_ready"])
         
         # Verify services
         services = data["services"]
-        assert "redis" in services
-        assert "workflow_engine" in services
-        assert "claude_api" in services
+        self.assertIn("redis", services)
+        self.assertIn("workflow_engine", services)
+        self.assertIn("claude_api", services)
         
         # Verify Redis service
         redis_service = services["redis"]
-        assert redis_service["status"] == "healthy"
-        assert "response_time_ms" in redis_service
+        self.assertEqual(redis_service["status"], "healthy")
+        self.assertIn("response_time_ms", redis_service)
         
         # Verify workflow engine service
         workflow_service = services["workflow_engine"]
-        assert workflow_service["status"] == "healthy"
-        assert workflow_service["active_workflows"] == 3
-        assert workflow_service["pending_tasks"] == 5
+        self.assertEqual(workflow_service["status"], "healthy")
+        self.assertEqual(workflow_service["active_workflows"], 3)
+        self.assertEqual(workflow_service["pending_tasks"], 5)
         
         # Verify capabilities
         capabilities = data["capabilities"]
@@ -302,37 +302,37 @@ class TestIntegrationHealthEndpoint:
             "claude_integration"
         ]
         for capability in expected_capabilities:
-            assert capability in capabilities
+            self.assertIn(capability, capabilities)
         
         # Verify system info
         system_info = data["system_info"]
-        assert "python_version" in system_info
-        assert "fastapi_version" in system_info
-        assert "platform" in system_info
-        assert "hostname" in system_info
+        self.assertIn("python_version", system_info)
+        self.assertIn("fastapi_version", system_info)
+        self.assertIn("platform", system_info)
+        self.assertIn("hostname", system_info)
     
-    def test_get_integration_health_without_details(self, client, mock_workflow_engine, mock_queue_manager):
+    def test_get_integration_health_without_details(self):
         """Test health check without detailed information"""
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=mock_workflow_engine), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodex.api.integration.get_workflow_engine', return_value=self.mock_workflow_engine), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('redis.Redis') as mock_redis_class:
             
             mock_redis = Mock()
             mock_redis.ping.return_value = True
             mock_redis_class.return_value = mock_redis
             
-            response = client.get("/api/v1/integration/health?include_details=false")
+            response = self.client.get("/api/v1/integration/health?include_details=false")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Should still include system_info even when include_details=false
-        assert "system_info" in data
+        self.assertIn("system_info", data)
     
-    def test_get_integration_health_redis_failure(self, client, mock_workflow_engine, mock_queue_manager):
+    def test_get_integration_health_redis_failure(self):
         """Test health check with Redis failure"""
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=mock_workflow_engine), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodex.api.integration.get_workflow_engine', return_value=self.mock_workflow_engine), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('redis.Redis') as mock_redis_class:
             
             # Mock Redis connection failure
@@ -340,20 +340,20 @@ class TestIntegrationHealthEndpoint:
             mock_redis.ping.side_effect = Exception("Connection failed")
             mock_redis_class.return_value = mock_redis
             
-            response = client.get("/api/v1/integration/health")
+            response = self.client.get("/api/v1/integration/health")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Should report unhealthy status
-        assert data["status"] == "degraded"
-        assert data["integration_ready"] is False
+        self.assertEqual(data["status"], "degraded")
+        self.assertFalse(data["integration_ready"])
         
         # Redis service should be marked as unhealthy
         services = data["services"]
-        assert services["redis"]["status"] == "unhealthy"
+        self.assertEqual(services["redis"]["status"], "unhealthy")
     
-    def test_get_integration_health_workflow_failure(self, client, mock_queue_manager):
+    def test_get_integration_health_workflow_failure(self):
         """Test health check with workflow engine failure"""
         # Create unhealthy workflow engine
         unhealthy_workflow = Mock()
@@ -361,70 +361,70 @@ class TestIntegrationHealthEndpoint:
         unhealthy_workflow.get_active_workflows = AsyncMock(return_value=0)
         unhealthy_workflow.get_pending_tasks_count = AsyncMock(return_value=0)
         
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=unhealthy_workflow), \
-             patch('knocodex.api.integration.get_queue_manager', return_value=mock_queue_manager), \
+        with patch('knocodx.api.integration.get_workflow_engine', return_value=unhealthy_workflow), \
+             patch('knocodx.api.integration.get_queue_manager', return_value=self.mock_queue_manager), \
              patch('redis.Redis') as mock_redis_class:
             
             mock_redis = Mock()
             mock_redis.ping.return_value = True
             mock_redis_class.return_value = mock_redis
             
-            response = client.get("/api/v1/integration/health")
+            response = self.client.get("/api/v1/integration/health")
             
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         data = response.json()
         
         # Should report degraded status
-        assert data["status"] == "degraded"
+        self.assertEqual(data["status"], "degraded")
         
         # Workflow engine should be marked as unhealthy
         services = data["services"]
-        assert services["workflow_engine"]["status"] == "unhealthy"
+        self.assertEqual(services["workflow_engine"]["status"], "unhealthy")
 
 
-class TestIntegrationEndpointErrors:
+class TestIntegrationEndpointErrors(BaseIntegrationAPITest):
     """Tests for error handling in integration endpoints"""
     
-    def test_cli_options_config_error(self, client):
+    def test_cli_options_config_error(self):
         """Test CLI options endpoint with config error"""
-        with patch('knocodex.api.integration.get_config', side_effect=Exception("Config error")):
-            response = client.get("/api/v1/cli/options")
+        with patch('knocodx.api.integration.get_config', side_effect=Exception("Config error")):
+            response = self.client.get("/api/v1/cli/options")
             
-        assert response.status_code == 500
+        self.assertEqual(response.status_code, 500)
         data = response.json()
-        assert "error" in data
-        assert "Config error" in data["message"]
+        self.assertIn("error", data)
+        self.assertIn("Config error", data["message"])
     
-    def test_stats_summary_workflow_error(self, client):
+    def test_stats_summary_workflow_error(self):
         """Test stats endpoint with workflow engine error"""
         error_workflow = Mock()
         error_workflow.get_task_stats = AsyncMock(side_effect=Exception("Workflow error"))
         
-        with patch('knocodex.api.integration.get_workflow_engine', return_value=error_workflow):
-            response = client.get("/api/v1/stats/summary")
+        with patch('knocodx.api.integration.get_workflow_engine', return_value=error_workflow):
+            response = self.client.get("/api/v1/stats/summary")
             
-        assert response.status_code == 500
+        self.assertEqual(response.status_code, 500)
         data = response.json()
-        assert "error" in data
-        assert "Workflow error" in data["message"]
+        self.assertIn("error", data)
+        self.assertIn("Workflow error", data["message"])
     
-    def test_health_check_exception(self, client):
+    def test_health_check_exception(self):
         """Test health endpoint with unexpected exception"""
-        with patch('knocodex.api.integration.get_workflow_engine', side_effect=Exception("Unexpected error")):
-            response = client.get("/api/v1/integration/health")
+        with patch('knocodx.api.integration.get_workflow_engine', side_effect=Exception("Unexpected error")):
+            response = self.client.get("/api/v1/integration/health")
             
-        assert response.status_code == 500
+        self.assertEqual(response.status_code, 500)
         data = response.json()
-        assert "error" in data
-        assert "Unexpected error" in data["message"]
+        self.assertIn("error", data)
+        self.assertIn("Unexpected error", data["message"])
 
 
-class TestIntegrationModels:
+class TestIntegrationModels(unittest.TestCase):
     """Tests for integration data models"""
     
     def test_integration_config_model(self):
         """Test IntegrationConfig model validation"""
-        from knocodex.models.mcp_task import IntegrationConfig
+        from knocodx.models.mcp_task import IntegrationConfig
         
         # Valid config
         config = IntegrationConfig(
@@ -439,13 +439,13 @@ class TestIntegrationModels:
             cache_ttl_seconds=600
         )
         
-        assert config.enabled is True
-        assert config.rate_limit_per_minute == 30
-        assert len(config.api_keys) == 2
+        self.assertTrue(config.enabled)
+        self.assertEqual(config.rate_limit_per_minute, 30)
+        self.assertEqual(len(config.api_keys), 2)
     
     def test_system_stats_model(self):
         """Test SystemStats model validation"""
-        from knocodex.models.mcp_task import SystemStats
+        from knocodx.models.mcp_task import SystemStats
         
         stats = SystemStats(
             timestamp=datetime.now(),
@@ -458,13 +458,13 @@ class TestIntegrationModels:
             alerts=[{"type": "warning", "message": "High load"}]
         )
         
-        assert stats.tasks["total"] == 100
-        assert stats.performance["avg_duration"] == 45.5
-        assert len(stats.alerts) == 1
+        self.assertEqual(stats.tasks["total"], 100)
+        self.assertEqual(stats.performance["avg_duration"], 45.5)
+        self.assertEqual(len(stats.alerts), 1)
     
     def test_integration_health_model(self):
         """Test IntegrationHealth model validation"""
-        from knocodex.models.mcp_task import IntegrationHealth
+        from knocodx.models.mcp_task import IntegrationHealth
         
         health = IntegrationHealth(
             status="healthy",
@@ -477,26 +477,26 @@ class TestIntegrationModels:
             integration_ready=True
         )
         
-        assert health.status == "healthy"
-        assert health.integration_ready is True
-        assert len(health.capabilities) == 1
+        self.assertEqual(health.status, "healthy")
+        self.assertTrue(health.integration_ready)
+        self.assertEqual(len(health.capabilities), 1)
     
     def test_cli_options_model(self):
         """Test CLIOptions model validation"""
-        from knocodex.models.mcp_task import CLIOptions
+        from knocodx.models.mcp_task import CLIOptions
         
         options = CLIOptions(
             commands={"test": {"description": "Test command"}},
             options={"verbose": {"type": "boolean"}},
             environment_variables={"API_KEY": "Required"},
-            project_structure={"dirs": [".knocodex"]},
-            integrations={"vscode": {"extension": "knocodex"}}
+            project_structure={"dirs": [".knocodx"]},
+            integrations={"vscode": {"extension": "knocodx"}}
         )
         
-        assert "test" in options.commands
-        assert "verbose" in options.options
-        assert "API_KEY" in options.environment_variables
+        self.assertIn("test", options.commands)
+        self.assertIn("verbose", options.options)
+        self.assertIn("API_KEY", options.environment_variables)
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    unittest.main()
